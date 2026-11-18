@@ -1,0 +1,14 @@
+<!-- WinSW: corre good-game-api.exe como servicio de Windows (arranca con el equipo y se reinicia si se cae). -->
+<service>
+  <id>good-game-api</id>
+  <name>Good Game API</name>
+  <description>API de la app de clientes de Good Game. Lee el sistema (Sistema_Local) sin modificarlo.</description>
+  <executable>%BASE%\good-game-api.exe</executable>
+  <workingdirectory>%BASE%</workingdirectory>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec"/>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>

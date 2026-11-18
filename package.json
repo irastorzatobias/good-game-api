@@ -1,0 +1,24 @@
+{
+  "name": "good-game-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API de la app de clientes de Good Game: lee el sistema Visual FoxPro (Sistema_Local) y guarda los datos propios de la app en SQLite.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "clave": "node src/main.ts clave",
+    "revisar": "node src/main.ts revisar",
+    "check": "tsc --noEmit",
+    "build:exe": "node scripts/build-exe.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6",
+    "typescript": "5.9"
+  }
+}

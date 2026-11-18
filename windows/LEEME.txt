@@ -1,0 +1,26 @@
+GOOD GAME API
+=============
+
+Poner esta carpeta en el servidor del local (por ejemplo C:\GoodGameAPI). No hace falta instalar nada mas.
+
+1. Doble clic en good-game-api.exe
+   La primera vez pide elegir la carpeta del sistema (Sistema_Local, la que tiene clientes.dbf).
+   La recuerda en config.json. Mientras la ventana este abierta, la API funciona.
+   Si Windows pregunta por el firewall, permitir el acceso.
+
+2. (Opcional) Para que corra siempre, aunque nadie inicie sesion:
+   cerrar la ventana del paso 1 y hacer doble clic en "Iniciar con Windows.bat".
+   Para sacarlo: "Quitar inicio automatico.bat".
+   Ojo: como servicio no ve las unidades de red mapeadas (Z:\...). Si el sistema esta en otra
+   PC, en config.json usar la ruta de red completa (\\SERVIDOR\Sistema_Local).
+
+Claves de los clientes (la app pide DNI y clave), desde una consola en esta carpeta:
+   good-game-api.exe clave 33456789 1234
+
+Promo, premios, avisos y regla de puntos: editar contenido.json (se toma solo, sin reiniciar).
+
+La API nunca escribe en el sistema. Lo que pasa en la app (compras, canjes, mensajes, respuestas a
+presupuestos, cambios de contacto) se guarda en la carpeta "datos". Hacer copia de esa carpeta.
+
+Para actualizar: cerrar la API (o "Quitar inicio automatico.bat"), reemplazar good-game-api.exe y
+volver a abrirla. No borrar config.json, contenido.json ni la carpeta datos.

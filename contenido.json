@@ -1,0 +1,27 @@
+{
+  "pesosPorPunto": 1000,
+  "diasCupon": 30,
+  "promo": {
+    "id": "semana-gamer",
+    "titulo": "Semana Gamer",
+    "hasta": "2026-11-16",
+    "descuento": 0.15,
+    "medio": "transf",
+    "condicion": "15% extra pagando por transferencia",
+    "codigos": ["3020", "3021", "3030"]
+  },
+  "premios": [
+    { "id": "r1", "nombre": "Cupón 5% de descuento", "detalle": "En tu próxima compra en el local", "costo": 500 },
+    { "id": "r2", "nombre": "Cupón 10% de descuento", "detalle": "En tu próxima compra en el local", "costo": 1000 },
+    { "id": "r3", "nombre": "Limpieza de PC gratis", "detalle": "Servicio técnico", "costo": 1200 },
+    { "id": "r4", "nombre": "Mouse Logitech G203", "detalle": "Retiro en el local", "costo": 2500 }
+  ],
+  "avisos": [
+    { "id": "a1", "tipo": "promo", "titulo": "Semana Gamer: 15% extra en periféricos",
+      "cuerpo": "Mouses, teclados y auriculares con 15% extra: en la app pagando por transferencia, y en el local también en efectivo.",
+      "fecha": "2026-11-03", "hasta": "2026-11-16" },
+    { "id": "a3", "tipo": "aviso", "titulo": "Nuevo horario de atención",
+      "cuerpo": "Desde noviembre atendemos de lunes a viernes de 9 a 13 y de 16 a 20 h, y los sábados de 9 a 13 h.",
+      "fecha": "2026-10-20" }
+  ]
+}

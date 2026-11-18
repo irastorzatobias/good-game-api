@@ -24,3 +24,7 @@ presupuestos, cambios de contacto) se guarda en la carpeta "datos". Hacer copia 
 
 Para actualizar: doble clic en "Actualizar.bat". Baja la ultima version publicada, reemplaza los
 programas y vuelve a arrancar la API. No toca config.json, contenido.json ni la carpeta datos.
+
+Panel del local (cuentas de los clientes): crear el usuario una vez, en una consola dentro de esta carpeta:
+  good-game-api.exe admin <usuario> <clave>
+y despues entrar a la app en /admin.

@@ -22,8 +22,12 @@ export class Archivo {
   }
 }
 
-export type Ctx = { cliente: string; body: Record<string, unknown>; query: URLSearchParams; params: string[] }
-export type Ruta = { metodo: string; patron: RegExp; manejar: (c: Ctx) => unknown; publica?: boolean }
+/** Quién puede usar la ruta: cualquiera, un cliente con sesión o un administrador del local. */
+export type Acceso = 'publica' | 'cliente' | 'admin'
+export type Ctx = { cliente: string; admin: string; body: Record<string, unknown>; query: URLSearchParams; params: string[] }
+export type Ruta = { metodo: string; patron: RegExp; manejar: (c: Ctx) => unknown; acceso: Acceso }
+/** Resuelve el token de cada tipo de sesión (son tablas distintas: un token de cliente nunca es de admin). */
+export type Sesiones = { cliente: (token: string) => string | undefined; admin: (token: string) => string | undefined }
 
 function enviar(res: ServerResponse, status: number, data: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' })
@@ -50,23 +54,24 @@ async function leerBody(req: IncomingMessage) {
 }
 
 /** Servidor JSON con CORS abierto: la app es una PWA en otro dominio. */
-export function servidor(rutas: Ruta[], clienteDeToken: (token: string) => string | undefined) {
+export function servidor(rutas: Ruta[], sesiones: Sesiones) {
   return createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
     if (req.method === 'OPTIONS') return res.writeHead(204).end()
     const url = new URL(req.url ?? '/', 'http://x')
     try {
-      for (const { metodo, patron, manejar, publica } of rutas) {
+      for (const { metodo, patron, manejar, acceso } of rutas) {
         const m = url.pathname.match(patron)
         if (!m || metodo !== req.method) continue
         const token = req.headers.authorization?.replace(/^Bearer /, '') ?? ''
-        const cliente = token ? clienteDeToken(token) : undefined
-        if (!publica && !cliente) throw new HttpError(401, 'Sesión inválida')
+        const cliente = token && acceso === 'cliente' ? sesiones.cliente(token) : undefined
+        const admin = token && acceso === 'admin' ? sesiones.admin(token) : undefined
+        if ((acceso === 'cliente' && !cliente) || (acceso === 'admin' && !admin)) throw new HttpError(401, 'Sesión inválida')
         const params = m.slice(1).map(decodeURIComponent)
-        const r = await manejar({ cliente: cliente ?? '', body: await leerBody(req), query: url.searchParams, params })
+        const r = await manejar({ cliente: cliente ?? '', admin: admin ?? '', body: await leerBody(req), query: url.searchParams, params })
         if (r instanceof Archivo) return enviarArchivo(res, r)
         return enviar(res, 200, r)
       }

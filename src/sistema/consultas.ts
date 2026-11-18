@@ -5,6 +5,7 @@ import type { Sistema } from './sistema.ts'
 /** Códigos compuestos del sistema: sucursal '1' + número alineado a la derecha (CLI_CODIGO, DCC_ARTICU, OM_ARTICUL). */
 export const cod = (n: string | number) => '1' + String(n).padStart(6)
 const soloDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '')
+const plano = (s: unknown) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
 
 export class Consultas {
   private readonly s: Sistema
@@ -57,6 +58,26 @@ export class Consultas {
   }
   cliente(codigo: string) {
     return this.clientes().get(codigo)
+  }
+  /**
+   * Para el admin: por DNI/CUIT o número de cliente si son dígitos; si no, por nombre o fantasía (todas las palabras).
+   * Los activos primero.
+   */
+  buscarClientes(texto: string, limite = 30) {
+    const digitos = soloDigitos(texto)
+    let r: Fila[]
+    if (digitos && digitos.length === texto.replace(/[\s.-]/g, '').length) {
+      const porCodigo = this.cliente(cod(Number(digitos)))
+      r = [...new Set([...(porCodigo ? [porCodigo] : []), ...this.clientesPorDni(digitos)])]
+    } else {
+      const palabras = plano(texto).split(/\s+/).filter(Boolean)
+      if (!palabras.length) return []
+      r = [...this.clientes().values()].filter((c) => {
+        const t = `${plano(c.CLI_NOMBRE)} ${plano(c.CLI_FANTAS)}`
+        return palabras.every((p) => t.includes(p))
+      })
+    }
+    return r.sort((a, b) => Number(b.CLI_ACTIVO) - Number(a.CLI_ACTIVO)).slice(0, limite)
   }
   /** El DNI puede estar en CLI_DNI_, en CLI_CUIT__ (casi siempre ahí) o dentro de un CUIT de 11 dígitos. Los activos primero. */
   clientesPorDni(dni: string) {

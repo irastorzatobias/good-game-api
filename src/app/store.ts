@@ -7,8 +7,10 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 
 const ESQUEMA = `
-CREATE TABLE IF NOT EXISTS claves (dni TEXT PRIMARY KEY, hash TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS accesos (cliente TEXT PRIMARY KEY, hash TEXT NOT NULL, creado TEXT NOT NULL, actualizado TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sesiones (token TEXT PRIMARY KEY, cliente TEXT NOT NULL, creada TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS admins (usuario TEXT PRIMARY KEY, hash TEXT NOT NULL, creado TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS sesiones_admin (token TEXT PRIMARY KEY, usuario TEXT NOT NULL, creada TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS prefs (cliente TEXT PRIMARY KEY, foto TEXT, notificaciones INTEGER NOT NULL, avisos_servicio INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS contactos (cliente TEXT PRIMARY KEY, campos TEXT NOT NULL, fecha TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS puntos (id TEXT PRIMARY KEY, cliente TEXT NOT NULL, fecha TEXT NOT NULL, detalle TEXT NOT NULL, puntos INTEGER NOT NULL);
@@ -34,6 +36,18 @@ export type Nota = { nro: number; cliente: string; fecha: string; medio: string;
   items: { articulo: string; cantidad: number; precio: number; tasaIva: number; bonif: number }[] }
 
 type Row = Record<string, unknown>
+export type Acceso = { creado: string; actualizado: string }
+
+// scrypt con sal propia por clave; se guarda "sal:hash" en hex.
+function hashear(clave: string) {
+  const sal = randomBytes(16)
+  return `${sal.toString('hex')}:${scryptSync(clave, sal, 32).toString('hex')}`
+}
+function coincide(guardado: unknown, clave: string) {
+  const [sal, hash] = String(guardado ?? '').split(':')
+  if (!sal || !hash) return false
+  return timingSafeEqual(Buffer.from(hash, 'hex'), scryptSync(clave, Buffer.from(sal, 'hex'), 32))
+}
 
 export class AppStore {
   private readonly db: DatabaseSync
@@ -65,24 +79,66 @@ export class AppStore {
     }
   }
 
-  // ---- Acceso
+  // ---- Acceso de clientes: la cuenta es del cliente (CLI_CODIGO); entra con cualquiera de sus DNI/CUIT.
 
-  fijarClave(dni: string, clave: string) {
-    const sal = randomBytes(16)
-    const hash = `${sal.toString('hex')}:${scryptSync(clave, sal, 32).toString('hex')}`
-    this.correr('INSERT INTO claves (dni, hash) VALUES (?, ?) ON CONFLICT(dni) DO UPDATE SET hash = excluded.hash', dni, hash)
+  /**
+   * Hasta la v1.2 las claves se guardaban por el DNI tipeado (tabla claves). Se pasan a su cliente una sola vez;
+   * las que no corresponden a ningún cliente se descartan.
+   */
+  migrarClaves(clienteDeDni: (dni: string) => string | undefined, fecha: string) {
+    if (!this.uno("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'claves'")) return
+    this.transaccion(() => {
+      for (const r of this.todos('SELECT dni, hash FROM claves')) {
+        const cliente = clienteDeDni(String(r.dni))
+        if (cliente) this.correr('INSERT OR IGNORE INTO accesos VALUES (?, ?, ?, ?)', cliente, String(r.hash), fecha, fecha)
+      }
+      this.db.exec('DROP TABLE claves')
+    })
   }
-  claveValida(dni: string, clave: string) {
-    const r = this.uno('SELECT hash FROM claves WHERE dni = ?', dni)
-    if (!r) return false
-    const [sal, hash] = String(r.hash).split(':')
-    return timingSafeEqual(Buffer.from(hash, 'hex'), scryptSync(clave, Buffer.from(sal, 'hex'), 32))
+  fijarClave(cliente: string, clave: string, fecha: string) {
+    this.correr(`INSERT INTO accesos VALUES (?, ?, ?, ?)
+      ON CONFLICT(cliente) DO UPDATE SET hash = excluded.hash, actualizado = excluded.actualizado`, cliente, hashear(clave), fecha, fecha)
+  }
+  claveValida(cliente: string, clave: string) {
+    return coincide(this.uno('SELECT hash FROM accesos WHERE cliente = ?', cliente)?.hash, clave)
+  }
+  acceso(cliente: string): Acceso | null {
+    return (this.uno('SELECT creado, actualizado FROM accesos WHERE cliente = ?', cliente) as Acceso | undefined) ?? null
+  }
+  /** Clientes con cuenta en la app (para marcarlos en la búsqueda del admin). */
+  accesos(): Map<string, Acceso> {
+    return new Map(this.todos('SELECT cliente, creado, actualizado FROM accesos').map(({ cliente, ...a }) => [cliente as string, a as Acceso]))
+  }
+  /** Quita la cuenta y cierra sus sesiones abiertas. */
+  quitarAcceso(cliente: string) {
+    this.transaccion(() => {
+      this.correr('DELETE FROM accesos WHERE cliente = ?', cliente)
+      this.cerrarSesiones(cliente)
+    })
+  }
+  cerrarSesiones(cliente: string) {
+    this.correr('DELETE FROM sesiones WHERE cliente = ?', cliente)
   }
   abrirSesion(token: string, cliente: string, fecha: string) {
     this.correr('INSERT INTO sesiones (token, cliente, creada) VALUES (?, ?, ?)', token, cliente, fecha)
   }
   clienteDeSesion(token: string) {
     return this.uno('SELECT cliente FROM sesiones WHERE token = ?', token)?.cliente as string | undefined
+  }
+
+  // ---- Administradores del local (se crean desde la consola del servidor)
+
+  fijarAdmin(usuario: string, clave: string, fecha: string) {
+    this.correr('INSERT INTO admins VALUES (?, ?, ?) ON CONFLICT(usuario) DO UPDATE SET hash = excluded.hash', usuario, hashear(clave), fecha)
+  }
+  adminValido(usuario: string, clave: string) {
+    return coincide(this.uno('SELECT hash FROM admins WHERE usuario = ?', usuario)?.hash, clave)
+  }
+  abrirSesionAdmin(token: string, usuario: string, fecha: string) {
+    this.correr('INSERT INTO sesiones_admin VALUES (?, ?, ?)', token, usuario, fecha)
+  }
+  adminDeSesion(token: string) {
+    return this.uno('SELECT usuario FROM sesiones_admin WHERE token = ?', token)?.usuario as string | undefined
   }
 
   // ---- Perfil

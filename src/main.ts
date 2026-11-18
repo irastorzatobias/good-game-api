@@ -1,5 +1,6 @@
 // good-game-api               levanta la API (en Windows, la primera vez pide elegir la carpeta del sistema)
 // good-game-api clave DNI X   da de alta o cambia la clave de un cliente
+// good-game-api admin U X     crea un usuario del panel del local (/admin) o le cambia la clave
 // good-game-api revisar       comprueba la configuración y lee las tablas
 // good-game-api version       muestra la versión (la usa Actualizar.bat)
 import { networkInterfaces } from 'node:os'
@@ -15,6 +16,8 @@ import { ArchivoPdfs } from './sistema/pdfs.ts'
 import { existsSync } from 'node:fs'
 import { elegirCarpeta, esWindows, esperarEnter } from './windows.ts'
 import { VERSION } from './version.ts'
+import { ahora } from './fechas.ts'
+import { CLAVE_MINIMA } from './dominio/admin.ts'
 
 // node:sqlite avisa que es experimental en cada arranque: no aporta nada en el log.
 process.removeAllListeners('warning').on('warning', (w) => w.name !== 'ExperimentalWarning' && console.warn(w))
@@ -50,8 +53,10 @@ function abrir(): Deps & { puerto: number; tablas: Sistema } {
   // Sin la carpeta de PDFs la app arma los suyos: no impide arrancar.
   const pdfs = cfg.pdfs && existsSync(cfg.pdfs) ? new ArchivoPdfs(cfg.pdfs) : null
   if (!pdfs) console.log(`Sin PDFs del sistema (no está ${cfg.pdfs ?? 'la carpeta "pdfs"'}): la app genera los suyos.`)
-  return { tablas, sistema: new Consultas(tablas, cfg.sucursal), pdfs, app: new AppStore(cfg.base),
-    contenido: new ArchivoContenido(cfg.contenido), puerto: cfg.puerto }
+  const sistema = new Consultas(tablas, cfg.sucursal)
+  const app = new AppStore(cfg.base)
+  app.migrarClaves((dni) => sistema.clientesPorDni(dni)[0]?.CLI_CODIGO as string | undefined, ahora())
+  return { tablas, sistema, pdfs, app, contenido: new ArchivoContenido(cfg.contenido), puerto: cfg.puerto }
 }
 
 const direcciones = () =>
@@ -69,13 +74,19 @@ try {
     if (!dni || !clave) throw new Error('Uso: good-game-api clave <DNI> <clave>')
     const cli = d.sistema.clientesPorDni(dni)[0]
     if (!cli) throw new Error(`No hay ningún cliente con DNI ${dni} en clientes.DBF`)
-    d.app.fijarClave(dni.replace(/\D/g, ''), clave)
+    d.app.fijarClave(cli.CLI_CODIGO as string, clave, ahora())
     console.log(`Clave guardada para ${cli.CLI_NOMBRE} (${cli.CLI_CODIGO})`)
+  } else if (comando === 'admin') {
+    const [usuario, clave] = args
+    if (!usuario || !clave) throw new Error('Uso: good-game-api admin <usuario> <clave>')
+    if (clave.length < CLAVE_MINIMA) throw new Error(`La clave tiene que tener al menos ${CLAVE_MINIMA} caracteres`)
+    d.app.fijarAdmin(usuario.toLowerCase(), clave, ahora())
+    console.log(`Usuario del panel "${usuario.toLowerCase()}" listo. Entrá a la app en /admin.`)
   } else if (comando === 'revisar') {
     for (const t of TABLAS) console.log(`${t.padEnd(12)} ${d.tablas.tabla(t).cantidad} registros`)
     console.log(`Dólar: ${d.sistema.cotizacion().DC_COTIZA} · artículos a la venta: ${d.sistema.articulosVenta().length}`)
   } else if (!comando) {
-    servidor(rutas(d), (token) => d.app.clienteDeSesion(token))
+    servidor(rutas(d), { cliente: (t) => d.app.clienteDeSesion(t), admin: (t) => d.app.adminDeSesion(t) })
       .on('error', (e: NodeJS.ErrnoException) => {
         console.error(e.code === 'EADDRINUSE' ? `El puerto ${d.puerto} ya está en uso: ¿la API ya está corriendo (o como servicio)?` : e.message)
         esperarEnter()

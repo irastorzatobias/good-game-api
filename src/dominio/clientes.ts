@@ -6,8 +6,10 @@ import type { Deps } from './deps.ts'
 
 export function login(d: Deps, body: Record<string, unknown>) {
   const dni = String(body.dni ?? '').replace(/\D/g, '')
-  const cli = d.sistema.clientesPorDni(dni)[0]
-  if (!cli || !d.app.claveValida(dni, String(body.clave ?? ''))) throw new HttpError(401, 'DNI o clave incorrectos')
+  const clave = String(body.clave ?? '')
+  // Un DNI puede estar en más de una ficha (persona y su empresa): entra a la que tenga esa clave.
+  const cli = dni ? d.sistema.clientesPorDni(dni).find((c) => d.app.claveValida(c.CLI_CODIGO as string, clave)) : undefined
+  if (!cli) throw new HttpError(401, 'DNI o clave incorrectos')
   const token = randomUUID()
   d.app.abrirSesion(token, cli.CLI_CODIGO as string, ahora())
   return { token, CLI_CODIGO: cli.CLI_CODIGO }

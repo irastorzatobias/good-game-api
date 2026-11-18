@@ -7,21 +7,22 @@ import { canjear, puntos } from './dominio/puntos.ts'
 import { escribir, marcarLeidos, orden, ordenes, responder, solicitar } from './dominio/servicio.ts'
 import { notaDeVenta } from './dominio/ventas.ts'
 import { VERSION } from './version.ts'
+import { buscarClientes, loginAdmin, quitarCuenta, fijarCuenta } from './dominio/admin.ts'
 
-const r = (metodo: string, patron: RegExp, manejar: Ruta['manejar'], publica = false): Ruta => ({ metodo, patron, manejar, publica })
+const r = (metodo: string, patron: RegExp, manejar: Ruta['manejar'], acceso: Ruta['acceso'] = 'cliente'): Ruta => ({ metodo, patron, manejar, acceso })
 
 export const rutas = (d: Deps): Ruta[] => [
-  r('GET', /^\/health$/, () => ({ ok: true, version: VERSION }), true),
-  r('POST', /^\/auth\/login$/, ({ body }) => login(d, body), true),
+  r('GET', /^\/health$/, () => ({ ok: true, version: VERSION }), 'publica'),
+  r('POST', /^\/auth\/login$/, ({ body }) => login(d, body), 'publica'),
 
   r('GET', /^\/clientes\/me$/, ({ cliente }) => perfil(d, cliente)),
   r('PATCH', /^\/clientes\/me$/, ({ cliente, body }) => actualizarPerfil(d, cliente, body)),
 
-  r('GET', /^\/rubros$/, () => d.sistema.rubros(), true),
-  r('GET', /^\/articulos$/, () => d.sistema.articulosVenta(), true),
-  r('GET', /^\/cotizacion$/, () => d.sistema.cotizacion(), true),
-  r('GET', /^\/tipodocu$/, () => [...d.sistema.tipos().values()], true),
-  r('GET', /^\/promo$/, () => d.contenido.leer().promo, true),
+  r('GET', /^\/rubros$/, () => d.sistema.rubros(), 'publica'),
+  r('GET', /^\/articulos$/, () => d.sistema.articulosVenta(), 'publica'),
+  r('GET', /^\/cotizacion$/, () => d.sistema.cotizacion(), 'publica'),
+  r('GET', /^\/tipodocu$/, () => [...d.sistema.tipos().values()], 'publica'),
+  r('GET', /^\/promo$/, () => d.contenido.leer().promo, 'publica'),
   r('GET', /^\/avisos$/, () => d.contenido.leer().avisos),
 
   // ?desde=YYYY-MM-DD acota la lista; el saldo siempre es sobre todo el historial.
@@ -43,4 +44,11 @@ export const rutas = (d: Deps): Ruta[] => [
 
   r('GET', /^\/solicitudes$/, ({ cliente }) => d.app.solicitudes(cliente)),
   r('POST', /^\/solicitudes$/, ({ cliente, body }) => solicitar(d, cliente, body)),
+
+  // ---- Panel del local (/admin en la app)
+  r('POST', /^\/admin\/login$/, ({ body }) => loginAdmin(d, body), 'publica'),
+  r('GET', /^\/admin\/clientes$/, ({ query }) => buscarClientes(d, query.get('q') ?? ''), 'admin'),
+  // body: { clave } — da de alta la cuenta o cambia la clave
+  r('POST', /^\/admin\/clientes\/([^/]+)\/clave$/, ({ body, params: [c] }) => fijarCuenta(d, c, body), 'admin'),
+  r('DELETE', /^\/admin\/clientes\/([^/]+)\/clave$/, ({ params: [c] }) => quitarCuenta(d, c), 'admin'),
 ]

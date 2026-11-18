@@ -1,6 +1,7 @@
 // good-game-api               levanta la API (en Windows, la primera vez pide elegir la carpeta del sistema)
 // good-game-api clave DNI X   da de alta o cambia la clave de un cliente
 // good-game-api revisar       comprueba la configuración y lee las tablas
+// good-game-api version       muestra la versión (la usa Actualizar.bat)
 import { networkInterfaces } from 'node:os'
 import { ArchivoContenido } from './app/contenido.ts'
 import { AppStore } from './app/store.ts'
@@ -13,6 +14,7 @@ import { Sistema, TABLAS } from './sistema/sistema.ts'
 import { ArchivoPdfs } from './sistema/pdfs.ts'
 import { existsSync } from 'node:fs'
 import { elegirCarpeta, esWindows, esperarEnter } from './windows.ts'
+import { VERSION } from './version.ts'
 
 // node:sqlite avisa que es experimental en cada arranque: no aporta nada en el log.
 process.removeAllListeners('warning').on('warning', (w) => w.name !== 'ExperimentalWarning' && console.warn(w))
@@ -56,6 +58,10 @@ const direcciones = () =>
   Object.values(networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i!.address)
 
 const [comando, ...args] = process.argv.slice(2)
+if (comando === 'version') {
+  console.log(VERSION)
+  process.exit(0)
+}
 try {
   const d = abrir()
   if (comando === 'clave') {
@@ -76,7 +82,7 @@ try {
         process.exit(1)
       })
       .listen(d.puerto, () => {
-        console.log(`Good Game API funcionando. Lee el sistema de ${d.tablas.carpeta}`)
+        console.log(`Good Game API ${VERSION} funcionando. Lee el sistema de ${d.tablas.carpeta}`)
         for (const ip of ['localhost', ...direcciones()]) console.log(`  http://${ip}:${d.puerto}`)
         console.log('No cierres esta ventana mientras la app esté en uso.')
       })

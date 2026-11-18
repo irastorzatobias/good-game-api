@@ -31,7 +31,8 @@ mkdirSync(salida, { recursive: true })
 mkdirSync(cache, { recursive: true })
 
 // 1. Un solo archivo CommonJS: SEA no carga módulos ESM ni node_modules.
-await build({ entryPoints: ['src/main.ts'], bundle: true, platform: 'node', target: 'node22', format: 'cjs', outfile: 'dist/build/main.cjs' })
+await build({ entryPoints: ['src/main.ts'], bundle: true, platform: 'node', target: 'node22', format: 'cjs', outfile: 'dist/build/main.cjs',
+  define: { __VERSION__: JSON.stringify(version) } })
 
 // 2. Blob SEA. Sin snapshot ni code cache para que el blob armado acá sirva en el node.exe de Windows.
 writeFileSync('dist/build/sea-config.json', JSON.stringify({

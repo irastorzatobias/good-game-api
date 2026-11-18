@@ -6,11 +6,12 @@ import { cuenta, documento, pdfDocumento } from './dominio/cuenta.ts'
 import { canjear, puntos } from './dominio/puntos.ts'
 import { escribir, marcarLeidos, orden, ordenes, responder, solicitar } from './dominio/servicio.ts'
 import { notaDeVenta } from './dominio/ventas.ts'
+import { VERSION } from './version.ts'
 
 const r = (metodo: string, patron: RegExp, manejar: Ruta['manejar'], publica = false): Ruta => ({ metodo, patron, manejar, publica })
 
 export const rutas = (d: Deps): Ruta[] => [
-  r('GET', /^\/health$/, () => ({ ok: true }), true),
+  r('GET', /^\/health$/, () => ({ ok: true, version: VERSION }), true),
   r('POST', /^\/auth\/login$/, ({ body }) => login(d, body), true),
 
   r('GET', /^\/clientes\/me$/, ({ cliente }) => perfil(d, cliente)),

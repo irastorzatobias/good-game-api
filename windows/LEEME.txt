@@ -22,5 +22,5 @@ Promo, premios, avisos y regla de puntos: editar contenido.json (se toma solo, s
 La API nunca escribe en el sistema. Lo que pasa en la app (compras, canjes, mensajes, respuestas a
 presupuestos, cambios de contacto) se guarda en la carpeta "datos". Hacer copia de esa carpeta.
 
-Para actualizar: cerrar la API (o "Quitar inicio automatico.bat"), reemplazar good-game-api.exe y
-volver a abrirla. No borrar config.json, contenido.json ni la carpeta datos.
+Para actualizar: doble clic en "Actualizar.bat". Baja la ultima version publicada, reemplaza los
+programas y vuelve a arrancar la API. No toca config.json, contenido.json ni la carpeta datos.

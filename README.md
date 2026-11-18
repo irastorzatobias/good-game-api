@@ -25,6 +25,9 @@ Un solo `good-game-api.exe` (Node SEA, no requiere Node en el servidor). Doble c
 sistema y la guarda en `config.json`. `Iniciar con Windows.bat` lo registra como servicio (WinSW). Ver `windows/LEEME.txt`.
 `node scripts/build-exe.mjs --host` arma el ejecutable para la máquina actual, para probarlo sin Windows.
 
+Para publicar una versión: subir `version` en `package.json`, `npm run build:exe` y
+`gh release create vX.Y.Z dist/good-game-api-X.Y.Z-win-x64.zip`. En el local, `Actualizar.bat` la instala.
+
 ## Estructura
 
 - `src/dbf/` lector de DBF (VFP y dBase/FoxPro 2, páginas 1252/850/437)

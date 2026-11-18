@@ -12,6 +12,7 @@ export type Config = {
   // Copias diarias de la base. Por defecto "Backup App" junto a la carpeta del sistema: así entra en el backup que
   // ya tenga el local de esa carpeta y no queda en el mismo lugar que la base.
   backups: string
+  urlPublica: string | null // por donde la usa la app (túnel); el tablero de estado comprueba que responda
 }
 
 // Instalado, todo vive junto al .exe; en desarrollo, en la carpeta del proyecto.
@@ -34,6 +35,7 @@ export function leerConfig(): Config {
     base: ruta(String(json.base ?? 'datos/app.db')),
     contenido: ruta(String(json.contenido ?? 'contenido.json')),
     pdfs: json.pdfs ? ruta(String(json.pdfs)) : sistema ? resolve(ruta(sistema), '..', 'Factura Electronica') : null,
+    urlPublica: json.urlPublica === undefined ? 'https://gg-api.hiburger.club' : (json.urlPublica as string | null),
     backups: json.backups ? ruta(String(json.backups)) : sistema ? resolve(ruta(sistema), '..', 'Backup App') : ruta('datos/backups'),
   }
 }

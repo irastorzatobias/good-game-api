@@ -4,6 +4,7 @@
 // good-game-api revisar       comprueba la configuración y lee las tablas
 // good-game-api backup        hace ahora la copia de seguridad de la base de la app
 // good-game-api version       muestra la versión (la usa Actualizar.bat)
+// good-game-api estado        tablero de estado del servidor (también al abrir el .exe si ya corre como servicio)
 import { networkInterfaces } from 'node:os'
 import { ArchivoContenido } from './app/contenido.ts'
 import { AppStore } from './app/store.ts'
@@ -17,6 +18,7 @@ import { ArchivoPdfs } from './sistema/pdfs.ts'
 import { existsSync } from 'node:fs'
 import { elegirCarpeta, esWindows, esperarEnter } from './windows.ts'
 import { VERSION } from './version.ts'
+import { SERVICIO_API, servicio, tablero } from './estado.ts'
 import { ahora } from './fechas.ts'
 import { CLAVE_MINIMA } from './dominio/admin.ts'
 import { respaldar, respaldarCadaDia } from './app/backups.ts'
@@ -69,7 +71,14 @@ if (comando === 'version') {
   console.log(VERSION)
   process.exit(0)
 }
-try {
+/** Muestra el error y, con doble clic, espera un Enter para que se pueda leer antes de que se cierre la ventana. */
+function fallar(e: unknown): never {
+  console.error((e as Error).message)
+  esperarEnter()
+  process.exit(1)
+}
+
+function ejecutar() {
   const d = abrir()
   if (comando === 'clave') {
     const [dni, clave] = args
@@ -105,8 +114,16 @@ try {
   } else {
     throw new Error(`Comando desconocido: ${comando}`)
   }
-} catch (e) {
-  console.error((e as Error).message)
-  esperarEnter()
-  process.exit(1)
+}
+
+// Con doble clic (hay consola) y la API instalada como servicio, abrir el .exe muestra cómo está en vez de
+// intentar levantar otra. El servicio corre sin consola, así que nunca entra acá.
+if (comando === 'estado' || (!comando && esWindows && process.stdout.isTTY && servicio(SERVICIO_API).instalado)) {
+  tablero(leerConfig()).catch(fallar)
+} else {
+  try {
+    ejecutar()
+  } catch (e) {
+    fallar(e)
+  }
 }

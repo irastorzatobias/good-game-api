@@ -33,3 +33,6 @@ Copias de seguridad: la API guarda una copia por dia de datos\app.db (cuentas y 
 en la carpeta "Backup App", al lado de la carpeta del sistema, y conserva las ultimas 14.
 Para hacer una en el momento: good-game-api.exe backup
 Para recuperar: parar la API, copiar la copia elegida sobre datos\app.db (con ese nombre) y volver a arrancarla.
+
+Estado: con la API instalada como servicio, abrir good-game-api.exe (o el acceso directo "Estado Good Game API"
+del escritorio) muestra si la API, el tunel, el acceso desde internet y las copias andan. R reinicia todo.

@@ -28,3 +28,8 @@ programas y vuelve a arrancar la API. No toca config.json, contenido.json ni la 
 Panel del local (cuentas de los clientes): crear el usuario una vez, en una consola dentro de esta carpeta:
   good-game-api.exe admin <usuario> <clave>
 y despues entrar a la app en /admin.
+
+Copias de seguridad: la API guarda una copia por dia de datos\app.db (cuentas y claves de los clientes)
+en la carpeta "Backup App", al lado de la carpeta del sistema, y conserva las ultimas 14.
+Para hacer una en el momento: good-game-api.exe backup
+Para recuperar: parar la API, copiar la copia elegida sobre datos\app.db (con ese nombre) y volver a arrancarla.

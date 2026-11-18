@@ -79,6 +79,11 @@ export class AppStore {
     }
   }
 
+  /** Copia consistente de la base (aunque la API esté atendiendo) en `destino`, que no debe existir. */
+  copiarA(destino: string) {
+    this.correr('VACUUM INTO ?', destino)
+  }
+
   // ---- Acceso de clientes: la cuenta es del cliente (CLI_CODIGO); entra con cualquiera de sus DNI/CUIT.
 
   /**

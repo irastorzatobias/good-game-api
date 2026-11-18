@@ -9,6 +9,9 @@ export type Config = {
   base: string // SQLite con los datos propios de la app
   contenido: string // promo, premios y avisos que edita el local
   pdfs: string | null // PDFs que guarda el sistema; por defecto "Factura Electronica" junto a la carpeta del sistema
+  // Copias diarias de la base. Por defecto "Backup App" junto a la carpeta del sistema: así entra en el backup que
+  // ya tenga el local de esa carpeta y no queda en el mismo lugar que la base.
+  backups: string
 }
 
 // Instalado, todo vive junto al .exe; en desarrollo, en la carpeta del proyecto.
@@ -31,6 +34,7 @@ export function leerConfig(): Config {
     base: ruta(String(json.base ?? 'datos/app.db')),
     contenido: ruta(String(json.contenido ?? 'contenido.json')),
     pdfs: json.pdfs ? ruta(String(json.pdfs)) : sistema ? resolve(ruta(sistema), '..', 'Factura Electronica') : null,
+    backups: json.backups ? ruta(String(json.backups)) : sistema ? resolve(ruta(sistema), '..', 'Backup App') : ruta('datos/backups'),
   }
 }
 

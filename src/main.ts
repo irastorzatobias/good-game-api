@@ -2,6 +2,7 @@
 // good-game-api clave DNI X   da de alta o cambia la clave de un cliente
 // good-game-api admin U X     crea un usuario del panel del local (/admin) o le cambia la clave
 // good-game-api revisar       comprueba la configuración y lee las tablas
+// good-game-api backup        hace ahora la copia de seguridad de la base de la app
 // good-game-api version       muestra la versión (la usa Actualizar.bat)
 import { networkInterfaces } from 'node:os'
 import { ArchivoContenido } from './app/contenido.ts'
@@ -18,6 +19,7 @@ import { elegirCarpeta, esWindows, esperarEnter } from './windows.ts'
 import { VERSION } from './version.ts'
 import { ahora } from './fechas.ts'
 import { CLAVE_MINIMA } from './dominio/admin.ts'
+import { respaldar, respaldarCadaDia } from './app/backups.ts'
 
 // node:sqlite avisa que es experimental en cada arranque: no aporta nada en el log.
 process.removeAllListeners('warning').on('warning', (w) => w.name !== 'ExperimentalWarning' && console.warn(w))
@@ -47,7 +49,7 @@ function abrirSistema(carpeta: string | null): Sistema {
   }
 }
 
-function abrir(): Deps & { puerto: number; tablas: Sistema } {
+function abrir(): Deps & { puerto: number; tablas: Sistema; backups: string } {
   const cfg = leerConfig()
   const tablas = abrirSistema(cfg.sistema)
   // Sin la carpeta de PDFs la app arma los suyos: no impide arrancar.
@@ -56,7 +58,7 @@ function abrir(): Deps & { puerto: number; tablas: Sistema } {
   const sistema = new Consultas(tablas, cfg.sucursal)
   const app = new AppStore(cfg.base)
   app.migrarClaves((dni) => sistema.clientesPorDni(dni)[0]?.CLI_CODIGO as string | undefined, ahora())
-  return { tablas, sistema, pdfs, app, contenido: new ArchivoContenido(cfg.contenido), puerto: cfg.puerto }
+  return { tablas, sistema, pdfs, app, contenido: new ArchivoContenido(cfg.contenido), puerto: cfg.puerto, backups: cfg.backups }
 }
 
 const direcciones = () =>
@@ -82,6 +84,8 @@ try {
     if (clave.length < CLAVE_MINIMA) throw new Error(`La clave tiene que tener al menos ${CLAVE_MINIMA} caracteres`)
     d.app.fijarAdmin(usuario.toLowerCase(), clave, ahora())
     console.log(`Usuario del panel "${usuario.toLowerCase()}" listo. Entrá a la app en /admin.`)
+  } else if (comando === 'backup') {
+    console.log(`Copia guardada en ${respaldar(d.app, d.backups, true)}`)
   } else if (comando === 'revisar') {
     for (const t of TABLAS) console.log(`${t.padEnd(12)} ${d.tablas.tabla(t).cantidad} registros`)
     console.log(`Dólar: ${d.sistema.cotizacion().DC_COTIZA} · artículos a la venta: ${d.sistema.articulosVenta().length}`)
@@ -95,6 +99,7 @@ try {
       .listen(d.puerto, () => {
         console.log(`Good Game API ${VERSION} funcionando. Lee el sistema de ${d.tablas.carpeta}`)
         for (const ip of ['localhost', ...direcciones()]) console.log(`  http://${ip}:${d.puerto}`)
+        respaldarCadaDia(d.app, d.backups)
         console.log('No cierres esta ventana mientras la app esté en uso.')
       })
   } else {

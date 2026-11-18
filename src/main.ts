@@ -10,6 +10,8 @@ import { servidor } from './http.ts'
 import { rutas } from './rutas.ts'
 import { Consultas } from './sistema/consultas.ts'
 import { Sistema, TABLAS } from './sistema/sistema.ts'
+import { ArchivoPdfs } from './sistema/pdfs.ts'
+import { existsSync } from 'node:fs'
 import { elegirCarpeta, esWindows, esperarEnter } from './windows.ts'
 
 // node:sqlite avisa que es experimental en cada arranque: no aporta nada en el log.
@@ -43,7 +45,10 @@ function abrirSistema(carpeta: string | null): Sistema {
 function abrir(): Deps & { puerto: number; tablas: Sistema } {
   const cfg = leerConfig()
   const tablas = abrirSistema(cfg.sistema)
-  return { tablas, sistema: new Consultas(tablas, cfg.sucursal), app: new AppStore(cfg.base),
+  // Sin la carpeta de PDFs la app arma los suyos: no impide arrancar.
+  const pdfs = cfg.pdfs && existsSync(cfg.pdfs) ? new ArchivoPdfs(cfg.pdfs) : null
+  if (!pdfs) console.log(`Sin PDFs del sistema (no está ${cfg.pdfs ?? 'la carpeta "pdfs"'}): la app genera los suyos.`)
+  return { tablas, sistema: new Consultas(tablas, cfg.sucursal), pdfs, app: new AppStore(cfg.base),
     contenido: new ArchivoContenido(cfg.contenido), puerto: cfg.puerto }
 }
 

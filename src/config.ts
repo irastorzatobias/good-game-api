@@ -8,6 +8,7 @@ export type Config = {
   puerto: number
   base: string // SQLite con los datos propios de la app
   contenido: string // promo, premios y avisos que edita el local
+  pdfs: string | null // PDFs que guarda el sistema; por defecto "Factura Electronica" junto a la carpeta del sistema
 }
 
 // Instalado, todo vive junto al .exe; en desarrollo, en la carpeta del proyecto.
@@ -29,6 +30,7 @@ export function leerConfig(): Config {
     puerto: Number(process.env.PORT ?? json.puerto ?? 8787),
     base: ruta(String(json.base ?? 'datos/app.db')),
     contenido: ruta(String(json.contenido ?? 'contenido.json')),
+    pdfs: json.pdfs ? ruta(String(json.pdfs)) : sistema ? resolve(ruta(sistema), '..', 'Factura Electronica') : null,
   }
 }
 

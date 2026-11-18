@@ -40,9 +40,9 @@ export class Consultas {
   articuloDe(compuesto: string) {
     return this.articulos().get(compuesto.slice(1).trim())
   }
-  /** Activos con precio: los de stock 0 se muestran como "sin stock". */
+  /** Lo que el cliente puede comprar: activo, con precio y con stock en la sucursal. */
   articulosVenta() {
-    return [...this.articulos().values()].filter((a) => a.AR_ACTIVO === 'S' && (a.AR_LIS1 as number) > 0)
+    return [...this.articulos().values()].filter((a) => a.AR_ACTIVO === 'S' && (a.AR_LIS1 as number) > 0 && (a.AR_CANT as number) > 0)
   }
   /** Solo los rubros que tienen algo a la venta. */
   rubros() {

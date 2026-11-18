@@ -2,7 +2,7 @@
 import type { Ruta } from './http.ts'
 import type { Deps } from './dominio/deps.ts'
 import { actualizarPerfil, login, perfil } from './dominio/clientes.ts'
-import { cuenta, documento } from './dominio/cuenta.ts'
+import { cuenta, documento, pdfDocumento } from './dominio/cuenta.ts'
 import { canjear, puntos } from './dominio/puntos.ts'
 import { escribir, marcarLeidos, orden, ordenes, responder, solicitar } from './dominio/servicio.ts'
 import { notaDeVenta } from './dominio/ventas.ts'
@@ -26,6 +26,7 @@ export const rutas = (d: Deps): Ruta[] => [
   // ?desde=YYYY-MM-DD acota la lista; el saldo siempre es sobre todo el historial.
   r('GET', /^\/cuenta$/, ({ cliente, query }) => cuenta(d, cliente, query.get('desde') ?? undefined)),
   r('GET', /^\/documentos\/([^/]+)$/, ({ cliente, params: [clave] }) => documento(d, cliente, clave)),
+  r('GET', /^\/documentos\/([^/]+)\/pdf$/, ({ cliente, params: [clave] }) => pdfDocumento(d, cliente, clave)),
   // body: { items: [{ AR_CODI, cantidad }], medio: 'mp' | 'tarjeta' | 'transf' }
   r('POST', /^\/notas-venta$/, ({ cliente, body }) => notaDeVenta(d, cliente, body)),
 

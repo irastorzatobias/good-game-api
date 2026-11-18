@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { Fila } from '../dbf/tabla.ts'
 import { HttpError } from '../http.ts'
 import { enDias, hoy } from '../fechas.ts'
-import { documentos } from './cuenta.ts'
+import { documentos, sinNotasFacturadas } from './cuenta.ts'
 import type { Deps } from './deps.ts'
 
 const SUMAN = ['FC', 'FE', 'TK', 'NV']
@@ -18,7 +18,7 @@ function movimientos(d: Deps, cuenta: string) {
       const nro = String(x.DOC_NRODOC)
       const numero = /^[A-Z]/.test(nro) ? `${nro.slice(0, 5)}-${nro.slice(5)}` : nro
       const resta = RESTAN.includes(x.DOC_TIPDOC as string)
-      const detalle = resta ? 'Devolución' : x.DOC_TIPDOC === 'NV' ? 'Compra en la app' : servicio.has(x.DOC_CLAVE_ as string) ? 'Servicio técnico' : 'Compra'
+      const detalle = resta ? 'Devolución' : x.DOC_USUARI === 'APP' ? 'Compra en la app' : servicio.has(x.DOC_CLAVE_ as string) ? 'Servicio técnico' : 'Compra'
       return { id: 'd' + x.DOC_CLAVE_, fecha: x.DOC_FECEMI as string, detalle: `${detalle} ${numero}`,
         puntos: (resta ? -1 : 1) * puntosDe(d, x.DOC_TOTAL_ as number) }
     })
@@ -30,7 +30,7 @@ function ranking(d: Deps, yo: string) {
   const desde = hoy().slice(0, 4) + '-01-01'
   const ganados = new Map(d.app.puntosGanadosDesde(desde))
   const sumar = (cuenta: string, p: number) => ganados.set(cuenta, (ganados.get(cuenta) ?? 0) + p)
-  for (const x of d.sistema.documentosDesde(desde, SUMAN)) sumar(x.DOC_CUENTA as string, puntosDe(d, x.DOC_TOTAL_ as number))
+  for (const x of sinNotasFacturadas(d.sistema.documentosDesde(desde, SUMAN))) sumar(x.DOC_CUENTA as string, puntosDe(d, x.DOC_TOTAL_ as number))
   for (const n of d.app.notasDesde(desde)) sumar(n.cliente, puntosDe(d, n.total))
   ganados.set(yo, ganados.get(yo) ?? 0)
   const fila = (cuenta: string, puntos: number) => {

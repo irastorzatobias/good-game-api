@@ -15,20 +15,15 @@ export function login(d: Deps, body: Record<string, unknown>) {
   return { token, CLI_CODIGO: cli.CLI_CODIGO }
 }
 
-/** Fila de clientes.DBF con los contactos que el cliente corrigió en la app encima; `app` son preferencias. */
+/** Fila de clientes.DBF tal cual (los datos de contacto los maneja el local); `app` son preferencias de la app. */
 export function perfil(d: Deps, cliente: string) {
   const c = d.sistema.cliente(cliente)
   if (!c) throw new HttpError(404, 'Cliente inexistente')
-  return { ...c, ...d.app.contacto(cliente), app: d.app.prefs(cliente) }
+  return { ...c, app: d.app.prefs(cliente) }
 }
 
-// Solo datos de contacto: lista, IVA y crédito los maneja el local.
-const CONTACTO = ['CLI_FANTAS', 'CLI_DIRECC', 'CLI_LOCALI', 'CLI_CELULA', 'CLI_EMAIL_'] as const
-
+/** Solo preferencias de la app (foto y avisos). Los datos del sistema no se cambian desde la app. */
 export function actualizarPerfil(d: Deps, cliente: string, body: Record<string, unknown>) {
-  const cambios = { ...d.app.contacto(cliente) }
-  for (const k of CONTACTO) if (typeof body[k] === 'string') cambios[k] = (body[k] as string).trim()
-  d.app.guardarContacto(cliente, cambios, ahora())
   if (body.app && typeof body.app === 'object') {
     const a = body.app as Record<string, unknown>
     d.app.guardarPrefs(cliente, {

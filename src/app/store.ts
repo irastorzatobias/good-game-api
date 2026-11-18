@@ -1,5 +1,5 @@
 // Datos propios de la app, que no existen en el sistema y no se pueden escribir en sus DBF
-// (FoxPro no se entera y los índices CDX quedan desfasados): claves, sesiones, preferencias, contactos editados,
+// (FoxPro no se entera y los índices CDX quedan desfasados): claves, sesiones, preferencias,
 // puntos que no salen de un comprobante, cupones, mensajes, respuestas a presupuestos, solicitudes y notas de venta.
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS sesiones (token TEXT PRIMARY KEY, cliente TEXT NOT NU
 CREATE TABLE IF NOT EXISTS admins (usuario TEXT PRIMARY KEY, hash TEXT NOT NULL, creado TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sesiones_admin (token TEXT PRIMARY KEY, usuario TEXT NOT NULL, creada TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS prefs (cliente TEXT PRIMARY KEY, foto TEXT, notificaciones INTEGER NOT NULL, avisos_servicio INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS contactos (cliente TEXT PRIMARY KEY, campos TEXT NOT NULL, fecha TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS puntos (id TEXT PRIMARY KEY, cliente TEXT NOT NULL, fecha TEXT NOT NULL, detalle TEXT NOT NULL, puntos INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS cupones (codigo TEXT PRIMARY KEY, cliente TEXT NOT NULL, premio TEXT NOT NULL, fecha TEXT NOT NULL, vence TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS mensajes (id INTEGER PRIMARY KEY, orden TEXT NOT NULL, de TEXT NOT NULL, texto TEXT NOT NULL, fecha TEXT NOT NULL, leido INTEGER);
@@ -156,15 +155,6 @@ export class AppStore {
     this.correr(`INSERT INTO prefs VALUES (?, ?, ?, ?) ON CONFLICT(cliente) DO UPDATE SET
       foto = excluded.foto, notificaciones = excluded.notificaciones, avisos_servicio = excluded.avisos_servicio`,
     cliente, p.foto, Number(p.notificaciones), Number(p.avisosServicio))
-  }
-  /** Datos de contacto que el cliente corrigió en la app; se muestran encima de los del sistema. */
-  contacto(cliente: string): Record<string, string> {
-    const r = this.uno('SELECT campos FROM contactos WHERE cliente = ?', cliente)
-    return r ? JSON.parse(String(r.campos)) : {}
-  }
-  guardarContacto(cliente: string, campos: Record<string, string>, fecha: string) {
-    this.correr('INSERT INTO contactos VALUES (?, ?, ?) ON CONFLICT(cliente) DO UPDATE SET campos = excluded.campos, fecha = excluded.fecha',
-      cliente, JSON.stringify(campos), fecha)
   }
 
   // ---- Puntos

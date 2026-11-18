@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { HttpError } from '../http.ts'
 import { ahora } from '../fechas.ts'
 import type { Deps } from './deps.ts'
+import type { Fila } from '../dbf/tabla.ts'
 
 export const CLAVE_MINIMA = 6
 
@@ -14,11 +15,18 @@ export function loginAdmin(d: Deps, body: Record<string, unknown>) {
   return { token, usuario }
 }
 
-/** Clientes del sistema con lo justo para reconocerlos, y si ya tienen cuenta en la app. */
-export function buscarClientes(d: Deps, q: string) {
-  if (q.trim().length < 2) return []
+const POR_PAGINA = 50
+
+/**
+ * Clientes del sistema con lo justo para reconocerlos y si ya tienen cuenta en la app, de a 50.
+ * `filtro`: todos, con cuenta o sin cuenta. `total` es lo que hay con esa búsqueda y ese filtro.
+ */
+export function buscarClientes(d: Deps, q: string, filtro: string, desde: number) {
   const accesos = d.app.accesos()
-  return d.sistema.buscarClientes(q.trim()).map((c) => ({
+  const tiene = (c: Fila) => accesos.has(c.CLI_CODIGO as string)
+  const todos = d.sistema.buscarClientes(q).filter((c) => filtro === 'con' ? tiene(c) : filtro === 'sin' ? !tiene(c) : true)
+  const inicio = Math.max(0, Math.floor(desde) || 0)
+  const clientes = todos.slice(inicio, inicio + POR_PAGINA).map((c) => ({
     codigo: c.CLI_CODIGO as string,
     nombre: c.CLI_NOMBRE as string,
     fantasia: (c.CLI_FANTAS as string) || null,
@@ -27,6 +35,7 @@ export function buscarClientes(d: Deps, q: string) {
     activo: c.CLI_ACTIVO !== false,
     cuenta: accesos.get(c.CLI_CODIGO as string) ?? null,
   }))
+  return { total: todos.length, clientes, conCuenta: accesos.size }
 }
 
 function clienteDelSistema(d: Deps, codigo: string) {

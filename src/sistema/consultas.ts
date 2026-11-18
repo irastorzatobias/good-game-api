@@ -60,13 +60,14 @@ export class Consultas {
     return this.clientes().get(codigo)
   }
   /**
-   * Para el admin: por DNI/CUIT o número de cliente si son dígitos; si no, por nombre o fantasía (todas las palabras).
-   * Los activos primero.
+   * Para el admin: sin texto, todos; por DNI/CUIT o número de cliente si son dígitos; si no, por nombre o fantasía
+   * (todas las palabras). Los activos primero y por nombre.
    */
-  buscarClientes(texto: string, limite = 30) {
+  buscarClientes(texto: string) {
     const digitos = soloDigitos(texto)
     let r: Fila[]
-    if (digitos && digitos.length === texto.replace(/[\s.-]/g, '').length) {
+    if (!texto.trim()) r = [...this.clientes().values()]
+    else if (digitos && digitos.length === texto.replace(/[\s.-]/g, '').length) {
       const porCodigo = this.cliente(cod(Number(digitos)))
       r = [...new Set([...(porCodigo ? [porCodigo] : []), ...this.clientesPorDni(digitos)])]
     } else {
@@ -77,7 +78,7 @@ export class Consultas {
         return palabras.every((p) => t.includes(p))
       })
     }
-    return r.sort((a, b) => Number(b.CLI_ACTIVO) - Number(a.CLI_ACTIVO)).slice(0, limite)
+    return r.sort((a, b) => Number(b.CLI_ACTIVO) - Number(a.CLI_ACTIVO) || String(a.CLI_NOMBRE).localeCompare(String(b.CLI_NOMBRE), 'es'))
   }
   /** El DNI puede estar en CLI_DNI_, en CLI_CUIT__ (casi siempre ahí) o dentro de un CUIT de 11 dígitos. Los activos primero. */
   clientesPorDni(dni: string) {

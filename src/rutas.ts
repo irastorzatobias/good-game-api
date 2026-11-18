@@ -47,7 +47,8 @@ export const rutas = (d: Deps): Ruta[] => [
 
   // ---- Panel del local (/admin en la app)
   r('POST', /^\/admin\/login$/, ({ body }) => loginAdmin(d, body), 'publica'),
-  r('GET', /^\/admin\/clientes$/, ({ query }) => buscarClientes(d, query.get('q') ?? ''), 'admin'),
+  // ?q=texto&filtro=todos|con|sin&desde=0
+  r('GET', /^\/admin\/clientes$/, ({ query }) => buscarClientes(d, (query.get('q') ?? '').trim(), query.get('filtro') ?? 'todos', Number(query.get('desde') ?? 0)), 'admin'),
   // body: { clave } — da de alta la cuenta o cambia la clave
   r('POST', /^\/admin\/clientes\/([^/]+)\/clave$/, ({ body, params: [c] }) => fijarCuenta(d, c, body), 'admin'),
   r('DELETE', /^\/admin\/clientes\/([^/]+)\/clave$/, ({ params: [c] }) => quitarCuenta(d, c), 'admin'),

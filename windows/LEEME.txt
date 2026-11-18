@@ -36,3 +36,7 @@ Para recuperar: parar la API, copiar la copia elegida sobre datos\app.db (con es
 
 Estado: con la API instalada como servicio, abrir good-game-api.exe (o el acceso directo "Estado Good Game API"
 del escritorio) muestra si la API, el tunel, el acceso desde internet y las copias andan. R reinicia todo.
+
+Indicador: al lado del reloj, un punto verde (todo anda), amarillo (no se llega desde internet) o rojo
+(la API no responde). Doble clic: detalle. Clic derecho: reiniciar. Lo instala "Iniciar con Windows" y arranca
+al iniciar sesion. Si no se ve, puede estar en la flecha ^ de la bandeja: arrastrarlo al lado del reloj.

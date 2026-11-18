@@ -7,9 +7,10 @@ Set-Location $PSScriptRoot
 
 $repo = 'irastorzatobias/good-game-api'
 $servicio = 'good-game-api'
-# Lo que trae cada version. contenido.json solo se copia si no existe: lo edita el local.
-$programas = @('good-game-api.exe', 'good-game-api-service.exe', 'good-game-api-service.xml',
-  'Iniciar con Windows.bat', 'Quitar inicio automatico.bat', 'Actualizar.bat', 'actualizar.ps1', 'LEEME.txt')
+# Se copia todo lo del paquete menos lo que es del local: contenido.json (solo si falta), config.json y datos.
+$delLocal = @('contenido.json', 'config.json')
+# Si falta alguno (instalacion de una version que no los copiaba), se reinstala aunque la version sea la misma.
+$esperados = @('good-game-api.exe', 'indicador.ps1', 'Indicador.vbs')
 
 function Paso($texto) { Write-Host "`n> $texto" -ForegroundColor Cyan }
 function Arrancar($comoServicio) {
@@ -25,7 +26,8 @@ try {
   $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest" -Headers @{ 'User-Agent' = 'good-game-api' }
   $nueva = $release.tag_name.TrimStart('v')
   Write-Host "Instalada: $actual   Ultima: $nueva"
-  if ([version]$nueva -le [version]$actual) {
+  $faltan = @($esperados | Where-Object { -not (Test-Path $_) })
+  if ([version]$nueva -le [version]$actual -and -not $faltan) {
     Write-Host "`nYa esta actualizada." -ForegroundColor Green
     return
   }
@@ -49,10 +51,7 @@ try {
   Start-Sleep -Seconds 2
 
   Paso 'Reemplazando los programas'
-  foreach ($f in $programas) {
-    $de = Join-Path $origen.FullName $f
-    if (Test-Path $de) { Copy-Item $de $PSScriptRoot -Force }
-  }
+  Get-ChildItem $origen.FullName -File | Where-Object { $delLocal -notcontains $_.Name } | Copy-Item -Destination $PSScriptRoot -Force
   if (-not (Test-Path 'contenido.json')) { Copy-Item (Join-Path $origen.FullName 'contenido.json') $PSScriptRoot }
   Get-ChildItem $PSScriptRoot -File | Unblock-File
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue

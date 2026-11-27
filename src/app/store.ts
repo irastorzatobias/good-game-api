@@ -103,6 +103,22 @@ export class AppStore {
     this.correr(`INSERT INTO accesos VALUES (?, ?, ?, ?)
       ON CONFLICT(cliente) DO UPDATE SET hash = excluded.hash, actualizado = excluded.actualizado`, cliente, hashear(clave), fecha, fecha)
   }
+  /**
+   * Alta en bloque, en una sola transacción. Con `pisar`, a los que ya tenían cuenta les cambia la clave
+   * y les cierra las sesiones; sin `pisar`, los deja como están. Devuelve cuántas cuentas se fijaron.
+   */
+  fijarClaves(cuentas: { cliente: string; clave: string }[], fecha: string, pisar: boolean) {
+    return this.transaccion(() => {
+      let fijadas = 0
+      for (const { cliente, clave } of cuentas) {
+        if (!pisar && this.acceso(cliente)) continue
+        this.fijarClave(cliente, clave, fecha)
+        this.cerrarSesiones(cliente)
+        fijadas++
+      }
+      return fijadas
+    })
+  }
   claveValida(cliente: string, clave: string) {
     return coincide(this.uno('SELECT hash FROM accesos WHERE cliente = ?', cliente)?.hash, clave)
   }

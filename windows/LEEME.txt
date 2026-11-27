@@ -16,6 +16,9 @@ Poner esta carpeta en el servidor del local (por ejemplo C:\GoodGameAPI). No hac
 
 Claves de los clientes (la app pide DNI y clave), desde una consola en esta carpeta:
    good-game-api.exe clave 33456789 1234
+Cuenta para todos los clientes de una vez (entran con su CUIT, o DNI si no tienen, y la clave
+es el mismo numero; --todas tambien cambia las claves que ya existian):
+   good-game-api.exe cuentas
 
 Promo, premios, avisos y regla de puntos: editar contenido.json (se toma solo, sin reiniciar).
 

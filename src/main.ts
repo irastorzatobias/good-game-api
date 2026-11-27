@@ -1,5 +1,7 @@
 // good-game-api               levanta la API (en Windows, la primera vez pide elegir la carpeta del sistema)
 // good-game-api clave DNI X   da de alta o cambia la clave de un cliente
+// good-game-api cuentas      cuenta para todos los clientes con CUIT o DNI: entran con ese número y esa es la clave
+//                             (--todas: también a los que ya tenían otra clave)
 // good-game-api admin U X     crea un usuario del panel del local (/admin) o le cambia la clave
 // good-game-api revisar       comprueba la configuración y lee las tablas
 // good-game-api backup        hace ahora la copia de seguridad de la base de la app
@@ -20,7 +22,7 @@ import { elegirCarpeta, esWindows, esperarEnter } from './windows.ts'
 import { VERSION } from './version.ts'
 import { SERVICIO_API, servicio, tablero } from './estado.ts'
 import { ahora } from './fechas.ts'
-import { CLAVE_MINIMA } from './dominio/admin.ts'
+import { CLAVE_MINIMA, cuentasConDocumento } from './dominio/admin.ts'
 import { respaldar, respaldarCadaDia } from './app/backups.ts'
 
 // node:sqlite avisa que es experimental en cada arranque: no aporta nada en el log.
@@ -87,6 +89,13 @@ function ejecutar() {
     if (!cli) throw new Error(`No hay ningún cliente con DNI ${dni} en clientes.DBF`)
     d.app.fijarClave(cli.CLI_CODIGO as string, clave, ahora())
     console.log(`Clave guardada para ${cli.CLI_NOMBRE} (${cli.CLI_CODIGO})`)
+  } else if (comando === 'cuentas') {
+    const pisar = args.includes('--todas')
+    console.log('Armando las cuentas (puede tardar un par de minutos)...')
+    const r = cuentasConDocumento(d, pisar)
+    console.log(`Cuentas nuevas: ${r.fijadas}. Entran con su CUIT (o DNI) y la clave es el mismo número.`)
+    if (r.yaTenian) console.log(`${r.yaTenian} ya tenían cuenta y se dejaron con su clave (para ponerles el CUIT también: cuentas --todas).`)
+    if (r.sinDocumento) console.log(`${r.sinDocumento} clientes no tienen CUIT ni DNI cargado en el sistema: quedan sin cuenta.`)
   } else if (comando === 'admin') {
     const [usuario, clave] = args
     if (!usuario || !clave) throw new Error('Uso: good-game-api admin <usuario> <clave>')

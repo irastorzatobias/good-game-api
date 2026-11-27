@@ -51,6 +51,19 @@ export class Tabla {
     return this.buf.toString('latin1', p, p + c.largo).trim()
   }
 
+  /** Números de registro no borrados, agrupados por el valor crudo de `campo` (para buscar sin recorrer la tabla). */
+  indice(campo: string) {
+    const m = new Map<string, number[]>()
+    for (let i = 0; i < this.cantidad; i++) {
+      if (this.borrado(i)) continue
+      const k = this.crudo(i, campo)
+      const l = m.get(k)
+      if (l) l.push(i)
+      else m.set(k, [i])
+    }
+    return m
+  }
+
   borrado(i: number) {
     return this.buf[this.inicio + i * this.largoRegistro] === 0x2a // '*'
   }

@@ -55,6 +55,30 @@ export function fijarCuenta(d: Deps, codigo: string, body: Record<string, unknow
   return { cuenta: d.app.acceso(codigo), nueva: !habia }
 }
 
+const digitos = (v: unknown) => String(v ?? '').replace(/\D/g, '')
+const valido = (doc: string) => doc.length >= 7 && doc.length <= 11
+
+/** Con qué entra el cliente si la cuenta se arma sola: su CUIT o, si no tiene, su DNI (de 7 a 11 dígitos, lo que acepta el login). */
+export function documentoDeAcceso(c: Fila): string | null {
+  return [digitos(c.CLI_CUIT__), digitos(c.CLI_DNI_)].find(valido) ?? null
+}
+
+/**
+ * Cuenta para cada cliente del sistema con CUIT o DNI: entra con ese número y la clave es el mismo número.
+ * Con `pisar` también se la pone a los que ya tenían otra clave. Los que no tienen documento quedan sin cuenta.
+ */
+export function cuentasConDocumento(d: Deps, pisar: boolean) {
+  const cuentas: { cliente: string; clave: string }[] = []
+  let sinDocumento = 0
+  for (const c of d.sistema.buscarClientes('')) {
+    const doc = documentoDeAcceso(c)
+    if (doc) cuentas.push({ cliente: c.CLI_CODIGO as string, clave: doc })
+    else sinDocumento++
+  }
+  const fijadas = d.app.fijarClaves(cuentas, ahora(), pisar)
+  return { fijadas, yaTenian: cuentas.length - fijadas, sinDocumento }
+}
+
 export function quitarCuenta(d: Deps, codigo: string) {
   clienteDelSistema(d, codigo)
   d.app.quitarAcceso(codigo)

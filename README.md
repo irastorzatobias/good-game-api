@@ -11,6 +11,7 @@ npm install
 echo '{ "sistema": "/ruta/a/Sistema_Local" }' > config.json
 npm run revisar            # lee todas las tablas
 npm run clave -- 33456789 1234
+node src/main.ts cuentas    # cuenta para todos: CUIT (o DNI) como usuario y clave
 npm run dev                # http://localhost:8787
 npm run check              # tsc
 ```

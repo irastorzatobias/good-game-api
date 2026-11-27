@@ -10,18 +10,41 @@ Todo es gratis en Cloudflare (Workers + R2 dentro de los límites gratuitos).
 ## Cómo funciona
 
 - `nube/worker.ts`: Worker delante de la API. Pasa cada pedido al túnel; si el túnel no contesta (502/504/530 o
-  15 s sin respuesta en una lectura), responde desde R2. Toda respuesta de la copia lleva `X-GG-Respaldo: <fecha>`.
-- `src/nube/foto.ts`: la API arma la copia pidiéndole a sus propias rutas lo mismo que pediría la app.
-- `src/nube/subida.ts`: cada 10 minutos sube solo lo que cambió (y borra lo que ya no está) a `/_nube/...` del
-  Worker, con la clave compartida. La PC no tiene credenciales de Cloudflare.
-- En R2 no hay tokens ni códigos de cliente: el índice `sesiones` es sha256(token) → carpeta, y la carpeta es un hash
-  del cliente. Cerrar una sesión en el local la saca de la copia en la siguiente subida.
+  15 s sin respuesta en una lectura), atiende `nube/sinLocal.ts` con la copia de R2. Toda respuesta de la copia
+  lleva `X-GG-Respaldo: <fecha>` y la app muestra "El local está sin conexión".
+- `src/nube/foto.ts`: la API arma la copia pidiéndole a sus propias rutas lo mismo que pediría la app. Un objeto
+  por cliente (`cli/<hash>`, todos los del sistema), el catálogo (`pub/…`), la lista del panel (`admin/clientes`),
+  los accesos para el login (`acc/xx`, 256 grupos) y los índices de sesiones.
+- `src/nube/subida.ts`: cada 10 minutos carga lo anotado, sube solo lo que cambió (el ranking de puntos no cuenta
+  como cambio) y borra lo que sobra; en la primera pasada barre lo que quedó de antes.
+- En R2 no hay tokens ni códigos de cliente en los nombres: solo hashes.
+
+## Con el local apagado
+
+Se puede: entrar (clientes y panel), leer todo lo de la copia, mandar mensajes de servicio, pedir un service,
+responder un presupuesto, cambiar foto y avisos, y desde el panel buscar clientes y dar, cambiar o quitar cuentas.
+No se puede comprar ni canjear puntos (dependen de precios, stock y saldo del local).
+
+- **Login sin el local:** cada cuenta tiene además una versión liviana de la clave (PBKDF2, `src/app/verificador.ts`)
+  que el Worker puede comprobar en el plan gratis. Es más débil que el scrypt de la base del local y solo vive en R2.
+  Se guarda al fijar una clave, al entrar con el local prendido, y en segundo plano para las claves de fábrica
+  (CUIT o DNI). Una cuenta vieja que todavía no la tiene no puede entrar sin el local.
+- **Libreta:** cada cambio queda en `pend/<fecha>-<id>`, cifrado (AES-GCM con una llave sacada de la clave
+  compartida: puede llevar claves). Al volver, la API los carga en orden con las mismas rutas y con la hora en que
+  pasaron (`src/nube/pendientes.ts`); uno que ya no corresponde se descarta y queda en el log.
+- Las sesiones abiertas sin el local (`ses-off/`, `adm-off/`) pasan a la base del local con el mismo token.
+
+## Prueba
+
+Otro Worker y otro bucket: `npx wrangler deploy --env prueba --var ORIGEN:<túnel de la instancia de prueba>`
+(`gg-api-prueba.hiburger.club`, bucket `gg-api-nube-prueba`), con la instancia de `C:\Huella\api-prueba`
+apuntando ahí. Nunca se prueba contra el Worker de producción.
 
 ## Estado (2026-11-27)
 
 - Worker `gg-api-nube` desplegado, con R2 `gg-api-nube`. Está delante de `gg-api.hiburger.club` (ruta de zona) y
   también en `gg-api-nube.hiburger.club` (dominio propio). La app no cambió de URL.
-- La API del local (1.8.0, servicio `good-game-api`) sube la copia: `"nube"` en `C:\GoodGameAPI\config.json`. La
+- La API del local (servicio `good-game-api`) sube la copia: `"nube"` en `C:\GoodGameAPI\config.json`. La
   clave está ahí y como secret `CLAVE` del Worker; si se pierde, se genera otra y se cambia en los dos lados.
 - 1.7.0 quedó en `C:\GoodGameAPI\_anterior-1.7.0` por si hay que volver.
 

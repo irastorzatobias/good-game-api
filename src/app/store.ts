@@ -3,7 +3,9 @@
 // puntos que no salen de un comprobante, cupones, mensajes, respuestas a presupuestos, solicitudes y notas de venta.
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { randomBytes, scrypt, scryptSync, timingSafeEqual } from 'node:crypto'
+import { promisify } from 'node:util'
+import { verificador } from './verificador.ts'
 import { DatabaseSync } from 'node:sqlite'
 
 const ESQUEMA = `
@@ -47,6 +49,13 @@ function coincide(guardado: unknown, clave: string) {
   if (!sal || !hash) return false
   return timingSafeEqual(Buffer.from(hash, 'hex'), scryptSync(clave, Buffer.from(sal, 'hex'), 32))
 }
+const scryptAsync = promisify(scrypt) as (clave: string, sal: Buffer, largo: number) => Promise<Buffer>
+/** Igual que coincide, sin frenar la API (para probar muchas claves en segundo plano). */
+async function coincideEnSegundoPlano(guardado: unknown, clave: string) {
+  const [sal, hash] = String(guardado ?? '').split(':')
+  if (!sal || !hash) return false
+  return timingSafeEqual(Buffer.from(hash, 'hex'), await scryptAsync(clave, Buffer.from(sal, 'hex'), 32))
+}
 
 export class AppStore {
   private readonly db: DatabaseSync
@@ -55,6 +64,9 @@ export class AppStore {
     mkdirSync(dirname(ruta), { recursive: true })
     this.db = new DatabaseSync(ruta)
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;' + ESQUEMA)
+    // v1.10: la versión liviana de la clave para la copia en la nube (app/verificador.ts).
+    for (const tabla of ['accesos', 'admins'])
+      if (!this.todos(`PRAGMA table_info(${tabla})`).some((c) => c.name === 'nube')) this.db.exec(`ALTER TABLE ${tabla} ADD COLUMN nube TEXT`)
   }
 
   private uno(sql: string, ...p: (string | number | null)[]) {
@@ -94,14 +106,15 @@ export class AppStore {
     this.transaccion(() => {
       for (const r of this.todos('SELECT dni, hash FROM claves')) {
         const cliente = clienteDeDni(String(r.dni))
-        if (cliente) this.correr('INSERT OR IGNORE INTO accesos VALUES (?, ?, ?, ?)', cliente, String(r.hash), fecha, fecha)
+        if (cliente) this.correr('INSERT OR IGNORE INTO accesos (cliente, hash, creado, actualizado) VALUES (?, ?, ?, ?)', cliente, String(r.hash), fecha, fecha)
       }
       this.db.exec('DROP TABLE claves')
     })
   }
   fijarClave(cliente: string, clave: string, fecha: string) {
-    this.correr(`INSERT INTO accesos VALUES (?, ?, ?, ?)
-      ON CONFLICT(cliente) DO UPDATE SET hash = excluded.hash, actualizado = excluded.actualizado`, cliente, hashear(clave), fecha, fecha)
+    this.correr(`INSERT INTO accesos (cliente, hash, creado, actualizado, nube) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(cliente) DO UPDATE SET hash = excluded.hash, actualizado = excluded.actualizado, nube = excluded.nube`,
+    cliente, hashear(clave), fecha, fecha, verificador(clave))
   }
   /**
    * Alta en bloque, en una sola transacción. Con `pisar`, a los que ya tenían cuenta les cambia la clave
@@ -121,6 +134,31 @@ export class AppStore {
   }
   claveValida(cliente: string, clave: string) {
     return coincide(this.uno('SELECT hash FROM accesos WHERE cliente = ?', cliente)?.hash, clave)
+  }
+  /**
+   * Las cuentas anteriores a la v1.10 no tienen la versión liviana de la clave: se completa cuando el cliente entra
+   * (ahí se conoce la clave) o en segundo plano si la clave es la que se pone sola (completarVerificadores).
+   */
+  recordarVerificador(cliente: string, clave: string) {
+    this.correr('UPDATE accesos SET nube = ? WHERE cliente = ? AND nube IS NULL', verificador(clave), cliente)
+  }
+  /** Prueba `candidata(cliente)` en las cuentas sin versión liviana y la completa donde coincide. */
+  async completarVerificadores(candidata: (cliente: string) => string | null, yaProbados: Set<string>) {
+    let completados = 0
+    for (const r of this.todos('SELECT cliente, hash FROM accesos WHERE nube IS NULL')) {
+      const cliente = r.cliente as string
+      const clave = !yaProbados.has(cliente) && candidata(cliente)
+      yaProbados.add(cliente)
+      if (clave && (await coincideEnSegundoPlano(r.hash, clave))) {
+        this.recordarVerificador(cliente, clave)
+        completados++
+      }
+    }
+    return completados
+  }
+  /** Cliente → versión liviana de su clave, de las cuentas que la tienen (para la copia en la nube). */
+  verificadores() {
+    return new Map(this.todos('SELECT cliente, nube FROM accesos WHERE nube IS NOT NULL').map((r) => [r.cliente as string, r.nube as string]))
   }
   acceso(cliente: string): Acceso | null {
     return (this.uno('SELECT creado, actualizado FROM accesos WHERE cliente = ?', cliente) as Acceso | undefined) ?? null
@@ -153,7 +191,17 @@ export class AppStore {
   // ---- Administradores del local (se crean desde la consola del servidor)
 
   fijarAdmin(usuario: string, clave: string, fecha: string) {
-    this.correr('INSERT INTO admins VALUES (?, ?, ?) ON CONFLICT(usuario) DO UPDATE SET hash = excluded.hash', usuario, hashear(clave), fecha)
+    this.correr(`INSERT INTO admins (usuario, hash, creado, nube) VALUES (?, ?, ?, ?)
+      ON CONFLICT(usuario) DO UPDATE SET hash = excluded.hash, nube = excluded.nube`, usuario, hashear(clave), fecha, verificador(clave))
+  }
+  recordarVerificadorAdmin(usuario: string, clave: string) {
+    this.correr('UPDATE admins SET nube = ? WHERE usuario = ? AND nube IS NULL', verificador(clave), usuario)
+  }
+  verificadoresAdmin() {
+    return new Map(this.todos('SELECT usuario, nube FROM admins WHERE nube IS NOT NULL').map((r) => [r.usuario as string, r.nube as string]))
+  }
+  sesionesAdmin() {
+    return this.todos('SELECT token, usuario FROM sesiones_admin') as { token: string; usuario: string }[]
   }
   adminValido(usuario: string, clave: string) {
     return coincide(this.uno('SELECT hash FROM admins WHERE usuario = ?', usuario)?.hash, clave)

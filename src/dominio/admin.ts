@@ -4,12 +4,14 @@ import { HttpError } from '../http.ts'
 import { ahora } from '../fechas.ts'
 import type { Deps } from './deps.ts'
 import type { Fila } from '../dbf/tabla.ts'
+import type { Acceso } from '../app/store.ts'
 
 export const CLAVE_MINIMA = 6
 
 export function loginAdmin(d: Deps, body: Record<string, unknown>) {
   const usuario = String(body.usuario ?? '').trim().toLowerCase()
   if (!usuario || !d.app.adminValido(usuario, String(body.clave ?? ''))) throw new HttpError(401, 'Usuario o clave incorrectos')
+  d.app.recordarVerificadorAdmin(usuario, String(body.clave))
   const token = randomUUID()
   d.app.abrirSesionAdmin(token, usuario, ahora())
   return { token, usuario }
@@ -26,17 +28,20 @@ export function buscarClientes(d: Deps, q: string, filtro: string, desde: number
   const tiene = (c: Fila) => accesos.has(c.CLI_CODIGO as string)
   const todos = d.sistema.buscarClientes(q).filter((c) => filtro === 'con' ? tiene(c) : filtro === 'sin' ? !tiene(c) : true)
   const inicio = Math.max(0, Math.floor(desde) || 0)
-  const clientes = todos.slice(inicio, inicio + POR_PAGINA).map((c) => ({
-    codigo: c.CLI_CODIGO as string,
-    nombre: c.CLI_NOMBRE as string,
-    fantasia: (c.CLI_FANTAS as string) || null,
-    documento: (c.CLI_CUIT__ as string) || (c.CLI_DNI_ as string) || null,
-    localidad: (c.CLI_LOCALI as string) || null,
-    activo: c.CLI_ACTIVO !== false,
-    cuenta: accesos.get(c.CLI_CODIGO as string) ?? null,
-  }))
+  const clientes = todos.slice(inicio, inicio + POR_PAGINA).map((c) => filaDelPanel(c, accesos))
   return { total: todos.length, clientes, conCuenta: accesos.size }
 }
+
+/** Un cliente como lo muestra el panel (también lo usa la copia en la nube). */
+export const filaDelPanel = (c: Fila, accesos: Map<string, Acceso>) => ({
+  codigo: c.CLI_CODIGO as string,
+  nombre: c.CLI_NOMBRE as string,
+  fantasia: (c.CLI_FANTAS as string) || null,
+  documento: (c.CLI_CUIT__ as string) || (c.CLI_DNI_ as string) || null,
+  localidad: (c.CLI_LOCALI as string) || null,
+  activo: c.CLI_ACTIVO !== false,
+  cuenta: accesos.get(c.CLI_CODIGO as string) ?? null,
+})
 
 function clienteDelSistema(d: Deps, codigo: string) {
   const c = d.sistema.cliente(codigo)

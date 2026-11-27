@@ -128,7 +128,7 @@ function ejecutar() {
         console.log(`Good Game API ${VERSION} funcionando. Lee el sistema de ${d.tablas.carpeta}`)
         for (const ip of ['localhost', ...direcciones()]) console.log(`  http://${ip}:${d.puerto}`)
         respaldarCadaDia(d.app, d.backups)
-        d.nube?.sincronizarSeguido(api, () => d.app.sesiones())
+        d.nube?.sincronizarSeguido(d, api)
         console.log('No cierres esta ventana mientras la app esté en uso.')
       })
   } else {

@@ -29,6 +29,7 @@ import { respaldar, respaldarCadaDia } from './app/backups.ts'
 import { HERRAMIENTAS, herramienta } from './herramientas.ts'
 import { EscritorVfp } from './escritor/escritor.ts'
 import { terminalDe } from './sistema/terminal.ts'
+import { Nube } from './nube/subida.ts'
 
 // node:sqlite avisa que es experimental en cada arranque: no aporta nada en el log.
 process.removeAllListeners('warning').on('warning', (w) => w.name !== 'ExperimentalWarning' && console.warn(w))
@@ -58,7 +59,7 @@ function abrirSistema(carpeta: string | null): Sistema {
   }
 }
 
-function abrir(): Deps & { puerto: number; tablas: Sistema; backups: string } {
+function abrir(): Deps & { puerto: number; tablas: Sistema; backups: string; nube: Nube | null } {
   const cfg = leerConfig()
   const tablas = abrirSistema(cfg.sistema)
   // Sin la carpeta de PDFs la app arma los suyos: no impide arrancar.
@@ -69,7 +70,8 @@ function abrir(): Deps & { puerto: number; tablas: Sistema; backups: string } {
   app.migrarClaves((dni) => sistema.clientesPorDni(dni)[0]?.CLI_CODIGO as string | undefined, ahora())
   const escritura = cfg.escritura ? { escritor: new EscritorVfp(cfg.escritura), terminal: terminalDe(cfg.escritura) } : null
   if (escritura) console.log(`Escribe en el sistema de ${cfg.escritura} (terminal ${escritura.terminal.machin}).`)
-  return { tablas, sistema, pdfs, app, contenido: new ArchivoContenido(cfg.contenido), escritura, puerto: cfg.puerto, backups: cfg.backups }
+  return { tablas, sistema, pdfs, app, contenido: new ArchivoContenido(cfg.contenido), escritura, puerto: cfg.puerto, backups: cfg.backups,
+    nube: cfg.nube && new Nube(cfg.nube) }
 }
 
 const direcciones = () =>
@@ -115,7 +117,8 @@ function ejecutar() {
     for (const t of TABLAS) console.log(`${t.padEnd(12)} ${d.tablas.tabla(t).cantidad} registros`)
     console.log(`Dólar: ${d.sistema.cotizacion().DC_COTIZA} · artículos a la venta: ${d.sistema.articulosVenta().length}`)
   } else if (!comando) {
-    servidor(rutas(d), { cliente: (t) => d.app.clienteDeSesion(t), admin: (t) => d.app.adminDeSesion(t) })
+    const api = rutas(d)
+    servidor(api, { cliente: (t) => d.app.clienteDeSesion(t), admin: (t) => d.app.adminDeSesion(t) })
       .on('error', (e: NodeJS.ErrnoException) => {
         console.error(e.code === 'EADDRINUSE' ? `El puerto ${d.puerto} ya está en uso: ¿la API ya está corriendo (o como servicio)?` : e.message)
         esperarEnter()
@@ -125,6 +128,7 @@ function ejecutar() {
         console.log(`Good Game API ${VERSION} funcionando. Lee el sistema de ${d.tablas.carpeta}`)
         for (const ip of ['localhost', ...direcciones()]) console.log(`  http://${ip}:${d.puerto}`)
         respaldarCadaDia(d.app, d.backups)
+        d.nube?.sincronizarSeguido(api, () => d.app.sesiones())
         console.log('No cierres esta ventana mientras la app esté en uso.')
       })
   } else {

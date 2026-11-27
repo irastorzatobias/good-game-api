@@ -53,6 +53,14 @@ async function leerBody(req: IncomingMessage) {
   }
 }
 
+/** La ruta que atiende `metodo pathname`, con los grupos del patrón ya decodificados. */
+export function encontrar(rutas: Ruta[], metodo: string, pathname: string): { ruta: Ruta; params: string[] } | undefined {
+  for (const ruta of rutas) {
+    const m = ruta.metodo === metodo && pathname.match(ruta.patron)
+    if (m) return { ruta, params: m.slice(1).map(decodeURIComponent) }
+  }
+}
+
 /** Servidor JSON con CORS abierto: la app es una PWA en otro dominio. */
 export function servidor(rutas: Ruta[], sesiones: Sesiones) {
   return createServer(async (req, res) => {
@@ -63,15 +71,14 @@ export function servidor(rutas: Ruta[], sesiones: Sesiones) {
     if (req.method === 'OPTIONS') return res.writeHead(204).end()
     const url = new URL(req.url ?? '/', 'http://x')
     try {
-      for (const { metodo, patron, manejar, acceso } of rutas) {
-        const m = url.pathname.match(patron)
-        if (!m || metodo !== req.method) continue
+      const hallada = encontrar(rutas, req.method ?? 'GET', url.pathname)
+      if (hallada) {
+        const { manejar, acceso } = hallada.ruta
         const token = req.headers.authorization?.replace(/^Bearer /, '') ?? ''
         const cliente = token && acceso === 'cliente' ? sesiones.cliente(token) : undefined
         const admin = token && acceso === 'admin' ? sesiones.admin(token) : undefined
         if ((acceso === 'cliente' && !cliente) || (acceso === 'admin' && !admin)) throw new HttpError(401, 'Sesión inválida')
-        const params = m.slice(1).map(decodeURIComponent)
-        const r = await manejar({ cliente: cliente ?? '', admin: admin ?? '', body: await leerBody(req), query: url.searchParams, params })
+        const r = await manejar({ cliente: cliente ?? '', admin: admin ?? '', body: await leerBody(req), query: url.searchParams, params: hallada.params })
         if (r instanceof Archivo) return enviarArchivo(res, r)
         return enviar(res, 200, r)
       }

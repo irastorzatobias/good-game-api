@@ -1,0 +1,17 @@
+// Worker gratis de Cloudflare: proxy a la API del local y, con el local apagado, la última copia (R2).
+// Está delante de gg-api.hiburger.club (la URL de la app): su fetch a ORIGEN, mismo host, va directo al túnel.
+// gg-api-nube.hiburger.club es la misma cosa con otro nombre (para probar y para que la API suba la copia).
+// Para sacarlo de delante de la app: quitar la ruta de gg-api y `npx wrangler deploy`.
+// La clave compartida con la API: `npx wrangler secret put CLAVE` (la misma que "nube.clave" en config.json).
+{
+  "name": "gg-api-nube",
+  "main": "worker.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "gg-api-nube.hiburger.club", "custom_domain": true },
+    { "pattern": "gg-api.hiburger.club/*", "zone_name": "hiburger.club" }
+  ],
+  "vars": { "ORIGEN": "https://gg-api.hiburger.club" },
+  "r2_buckets": [{ "binding": "NUBE", "bucket_name": "gg-api-nube" }]
+}

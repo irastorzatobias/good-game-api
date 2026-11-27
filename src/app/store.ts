@@ -142,6 +142,10 @@ export class AppStore {
   abrirSesion(token: string, cliente: string, fecha: string) {
     this.correr('INSERT INTO sesiones (token, cliente, creada) VALUES (?, ?, ?)', token, cliente, fecha)
   }
+  /** Todas las sesiones abiertas de clientes (para la copia en la nube). */
+  sesiones() {
+    return this.todos('SELECT token, cliente FROM sesiones') as { token: string; cliente: string }[]
+  }
   clienteDeSesion(token: string) {
     return this.uno('SELECT cliente FROM sesiones WHERE token = ?', token)?.cliente as string | undefined
   }

@@ -4,3 +4,6 @@ dist
 datos
 config.json
 .DS_Store
+nube/.dev.vars
+.wrangler
+nube/worker-configuration.d.ts

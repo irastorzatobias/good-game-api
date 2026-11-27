@@ -16,6 +16,8 @@ export type Config = {
   // Carpeta del sistema en la que la API puede escribir (driver de FoxPro). Sin ella, la API no escribe en el sistema.
   // Mientras se prueba, apunta a una copia (C:\Huella\api), nunca a la carpeta en uso.
   escritura: string | null
+  // Copia en la nube (Worker de Cloudflare) de lo que lee la app, para cuando el local está apagado. Sin ella, no se sube.
+  nube: { url: string; clave: string } | null
 }
 
 // Instalado, todo vive junto al .exe; en desarrollo, en la carpeta del proyecto.
@@ -25,6 +27,13 @@ const archivo = ruta('config.json')
 
 function leerJson(): Record<string, unknown> {
   return existsSync(archivo) ? JSON.parse(readFileSync(archivo, 'utf8').replace(/^﻿/, '')) : {}
+}
+
+function leerNube(v: unknown): Config['nube'] {
+  if (!v) return null
+  const { url, clave } = v as Record<string, unknown>
+  if (typeof url !== 'string' || typeof clave !== 'string' || !url || !clave) throw new Error('config.json: "nube" lleva { "url", "clave" }')
+  return { url: url.replace(/\/+$/, ''), clave }
 }
 
 /** config.json junto al ejecutable (si no existe, valores por defecto); GG_SISTEMA y PORT lo pisan. */
@@ -40,6 +49,7 @@ export function leerConfig(): Config {
     pdfs: json.pdfs ? ruta(String(json.pdfs)) : sistema ? resolve(ruta(sistema), '..', 'Factura Electronica') : null,
     urlPublica: json.urlPublica === undefined ? 'https://gg-api.hiburger.club' : (json.urlPublica as string | null),
     escritura: json.escritura ? ruta(String(json.escritura)) : null,
+    nube: leerNube(json.nube),
     backups: json.backups ? ruta(String(json.backups)) : sistema ? resolve(ruta(sistema), '..', 'Backup App') : ruta('datos/backups'),
   }
 }

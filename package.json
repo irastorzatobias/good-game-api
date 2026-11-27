@@ -1,6 +1,6 @@
 {
   "name": "good-game-api",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "private": true,
   "type": "module",
   "description": "API de la app de clientes de Good Game: lee el sistema Visual FoxPro (Sistema_Local) y guarda los datos propios de la app en SQLite.",

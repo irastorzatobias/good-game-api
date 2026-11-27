@@ -8,6 +8,7 @@ import { escribir, marcarLeidos, orden, ordenes, responder, solicitar } from './
 import { notaDeVenta } from './dominio/ventas.ts'
 import { VERSION } from './version.ts'
 import { buscarClientes, loginAdmin, quitarCuenta, fijarCuenta } from './dominio/admin.ts'
+import { notaDeVentaEnSistema } from './dominio/escritura.ts'
 
 const r = (metodo: string, patron: RegExp, manejar: Ruta['manejar'], acceso: Ruta['acceso'] = 'cliente'): Ruta => ({ metodo, patron, manejar, acceso })
 
@@ -52,4 +53,8 @@ export const rutas = (d: Deps): Ruta[] => [
   // body: { clave } — da de alta la cuenta o cambia la clave
   r('POST', /^\/admin\/clientes\/([^/]+)\/clave$/, ({ body, params: [c] }) => fijarCuenta(d, c, body), 'admin'),
   r('DELETE', /^\/admin\/clientes\/([^/]+)\/clave$/, ({ params: [c] }) => quitarCuenta(d, c), 'admin'),
+
+  // ---- Escritura en el sistema (solo si config.json tiene "escritura")
+  // body: { cuenta, renglones: [{ articulo, cantidad } | { texto }], observacion? }
+  r('POST', /^\/admin\/sistema\/notas-venta$/, ({ admin, body }) => notaDeVentaEnSistema(d, admin, body), 'admin'),
 ]

@@ -13,6 +13,9 @@ export type Config = {
   // ya tenga el local de esa carpeta y no queda en el mismo lugar que la base.
   backups: string
   urlPublica: string | null // por donde la usa la app (túnel); el tablero de estado comprueba que responda
+  // Carpeta del sistema en la que la API puede escribir (driver de FoxPro). Sin ella, la API no escribe en el sistema.
+  // Mientras se prueba, apunta a una copia (C:\Huella\api), nunca a la carpeta en uso.
+  escritura: string | null
 }
 
 // Instalado, todo vive junto al .exe; en desarrollo, en la carpeta del proyecto.
@@ -36,6 +39,7 @@ export function leerConfig(): Config {
     contenido: ruta(String(json.contenido ?? 'contenido.json')),
     pdfs: json.pdfs ? ruta(String(json.pdfs)) : sistema ? resolve(ruta(sistema), '..', 'Factura Electronica') : null,
     urlPublica: json.urlPublica === undefined ? 'https://gg-api.hiburger.club' : (json.urlPublica as string | null),
+    escritura: json.escritura ? ruta(String(json.escritura)) : null,
     backups: json.backups ? ruta(String(json.backups)) : sistema ? resolve(ruta(sistema), '..', 'Backup App') : ruta('datos/backups'),
   }
 }

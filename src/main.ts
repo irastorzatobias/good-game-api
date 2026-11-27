@@ -7,6 +7,8 @@
 // good-game-api backup        hace ahora la copia de seguridad de la base de la app
 // good-game-api version       muestra la versión (la usa Actualizar.bat)
 // good-game-api estado        tablero de estado del servidor (también al abrir el .exe si ya corre como servicio)
+// good-game-api huella A B    qué cambió entre dos copias de la carpeta del sistema (antes/después de una operación)
+// good-game-api probar-escritura COPIA   escribe una nota de venta de prueba en una copia del sistema (driver FoxPro)
 import { networkInterfaces } from 'node:os'
 import { ArchivoContenido } from './app/contenido.ts'
 import { AppStore } from './app/store.ts'
@@ -24,6 +26,9 @@ import { SERVICIO_API, servicio, tablero } from './estado.ts'
 import { ahora } from './fechas.ts'
 import { CLAVE_MINIMA, cuentasConDocumento } from './dominio/admin.ts'
 import { respaldar, respaldarCadaDia } from './app/backups.ts'
+import { HERRAMIENTAS, herramienta } from './herramientas.ts'
+import { EscritorVfp } from './escritor/escritor.ts'
+import { terminalDe } from './sistema/terminal.ts'
 
 // node:sqlite avisa que es experimental en cada arranque: no aporta nada en el log.
 process.removeAllListeners('warning').on('warning', (w) => w.name !== 'ExperimentalWarning' && console.warn(w))
@@ -62,7 +67,9 @@ function abrir(): Deps & { puerto: number; tablas: Sistema; backups: string } {
   const sistema = new Consultas(tablas, cfg.sucursal)
   const app = new AppStore(cfg.base)
   app.migrarClaves((dni) => sistema.clientesPorDni(dni)[0]?.CLI_CODIGO as string | undefined, ahora())
-  return { tablas, sistema, pdfs, app, contenido: new ArchivoContenido(cfg.contenido), puerto: cfg.puerto, backups: cfg.backups }
+  const escritura = cfg.escritura ? { escritor: new EscritorVfp(cfg.escritura), terminal: terminalDe(cfg.escritura) } : null
+  if (escritura) console.log(`Escribe en el sistema de ${cfg.escritura} (terminal ${escritura.terminal.machin}).`)
+  return { tablas, sistema, pdfs, app, contenido: new ArchivoContenido(cfg.contenido), escritura, puerto: cfg.puerto, backups: cfg.backups }
 }
 
 const direcciones = () =>
@@ -127,7 +134,9 @@ function ejecutar() {
 
 // Con doble clic (hay consola) y la API instalada como servicio, abrir el .exe muestra cómo está en vez de
 // intentar levantar otra. El servicio corre sin consola, así que nunca entra acá.
-if (comando === 'estado' || (!comando && esWindows && process.stdout.isTTY && servicio(SERVICIO_API).instalado)) {
+if (HERRAMIENTAS.includes(comando)) {
+  herramienta(comando, args).then(() => process.exit(0), fallar)
+} else if (comando === 'estado' || (!comando && esWindows && process.stdout.isTTY && servicio(SERVICIO_API).instalado)) {
   tablero(leerConfig()).catch(fallar)
 } else {
   try {

@@ -13,5 +13,15 @@
     { "pattern": "gg-api.hiburger.club/*", "zone_name": "hiburger.club" }
   ],
   "vars": { "ORIGEN": "https://gg-api.hiburger.club" },
-  "r2_buckets": [{ "binding": "NUBE", "bucket_name": "gg-api-nube" }]
+  "r2_buckets": [{ "binding": "NUBE", "bucket_name": "gg-api-nube" }],
+  // Prueba: otro Worker y otro bucket, delante de la instancia de prueba del local (C:\Huella\api-prueba).
+  // ORIGEN cambia con cada túnel rápido: `npx wrangler deploy --env prueba --var ORIGEN:<url>`.
+  "env": {
+    "prueba": {
+      "name": "gg-api-nube-prueba",
+      "routes": [{ "pattern": "gg-api-prueba.hiburger.club", "custom_domain": true }],
+      "vars": { "ORIGEN": "https://gg-api-prueba-origen.invalid" },
+      "r2_buckets": [{ "binding": "NUBE", "bucket_name": "gg-api-nube-prueba" }]
+    }
+  }
 }

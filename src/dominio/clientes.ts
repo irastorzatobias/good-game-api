@@ -10,6 +10,7 @@ export function login(d: Deps, body: Record<string, unknown>) {
   // Un DNI puede estar en más de una ficha (persona y su empresa): entra a la que tenga esa clave.
   const cli = dni ? d.sistema.clientesPorDni(dni).find((c) => d.app.claveValida(c.CLI_CODIGO as string, clave)) : undefined
   if (!cli) throw new HttpError(401, 'DNI o clave incorrectos')
+  d.app.recordarVerificador(cli.CLI_CODIGO as string, clave)
   const token = randomUUID()
   d.app.abrirSesion(token, cli.CLI_CODIGO as string, ahora())
   return { token, CLI_CODIGO: cli.CLI_CODIGO }

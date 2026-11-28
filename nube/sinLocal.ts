@@ -63,7 +63,7 @@ export async function sinLocal(req: Request, env: Env, url: URL): Promise<Respon
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
   const copia = new Copia(env)
   const meta = await copia.leer<{ fecha: string }>('meta')
-  if (!meta) return json(503, { error: 'El local está apagado y todavía no hay una copia guardada.' })
+  if (!meta) return json(503, { error: NO_DISPONIBLE })
   const aviso = { 'X-GG-Respaldo': meta.fecha }
   try {
     const r = await atender(req, url.pathname, url.searchParams, copia)
@@ -78,7 +78,10 @@ export async function sinLocal(req: Request, env: Env, url: URL): Promise<Respon
   }
 }
 
-const apagado = (que: string) => new Error4xx(503, `El local está apagado: ${que}`)
+// El cliente no se entera de que atiende la copia: ve un error genérico, como cualquier falla pasajera. El motivo
+// queda en el log del Worker.
+const NO_DISPONIBLE = 'No se pudo completar. Probá de nuevo en un rato.'
+const apagado = (motivo: string) => (console.log('sin local:', motivo), new Error4xx(503, NO_DISPONIBLE))
 
 async function atender(req: Request, path: string, query: URLSearchParams, copia: Copia): Promise<unknown> {
   const metodo = req.method

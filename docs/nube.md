@@ -11,7 +11,8 @@ Todo es gratis en Cloudflare (Workers + R2 dentro de los límites gratuitos).
 
 - `nube/worker.ts`: Worker delante de la API. Pasa cada pedido al túnel; si el túnel no contesta (502/504/530 o
   15 s sin respuesta en una lectura), atiende `nube/sinLocal.ts` con la copia de R2. Toda respuesta de la copia
-  lleva `X-GG-Respaldo: <fecha>` y la app muestra "El local está sin conexión".
+  lleva `X-GG-Respaldo: <fecha>` (solo para diagnóstico). Al cliente no se le avisa: lo que no se puede hacer sin el
+  local devuelve un error genérico ("No se pudo completar. Probá de nuevo en un rato.").
 - `src/nube/foto.ts`: la API arma la copia pidiéndole a sus propias rutas lo mismo que pediría la app. Un objeto
   por cliente (`cli/<hash>`, todos los del sistema), el catálogo (`pub/…`), la lista del panel (`admin/clientes`),
   los accesos para el login (`acc/xx`, 256 grupos) y los índices de sesiones.

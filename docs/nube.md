@@ -13,7 +13,9 @@ Todo es gratis en Cloudflare (Workers + R2 dentro de los límites gratuitos).
   15 s sin respuesta en una lectura), atiende `nube/sinLocal.ts` con la copia de R2. Toda respuesta de la copia
   lleva `X-GG-Respaldo: <fecha>` (solo para diagnóstico). Al cliente no se le avisa: lo que no se puede hacer sin el
   local devuelve un error genérico ("No se pudo completar. Probá de nuevo en un rato.").
-- `src/nube/foto.ts`: la API arma la copia pidiéndole a sus propias rutas lo mismo que pediría la app. Un objeto
+- `src/nube/foto.ts`: la API arma la copia pidiéndole a sus propias rutas lo mismo que pediría la app, sobre una
+  foto del sistema (`Sistema.fijo`): las tablas no se releen a mitad de pasada y lo que es igual para todos los
+  clientes (el ranking) se calcula una vez. Un objeto
   por cliente (`cli/<hash>`, todos los del sistema), el catálogo (`pub/…`), la lista del panel (`admin/clientes`),
   los accesos para el login (`acc/xx`, 256 grupos) y los índices de sesiones.
 - `src/nube/subida.ts`: cada 10 minutos carga lo anotado, sube solo lo que cambió (el ranking de puntos no cuenta
@@ -48,6 +50,11 @@ apuntando ahí. Nunca se prueba contra el Worker de producción.
 - La API del local (servicio `good-game-api`) sube la copia: `"nube"` en `C:\GoodGameAPI\config.json`. La
   clave está ahí y como secret `CLAVE` del Worker; si se pierde, se genera otra y se cambia en los dos lados.
 - 1.7.0 quedó en `C:\GoodGameAPI\_anterior-1.7.0` por si hay que volver.
+- En producción: API 1.9.0 (solo lectura con el local apagado). La 1.10.0 trabó la API en su primera pasada (el
+  ranking de puntos se recalculaba por cada cliente); la 1.10.1 lo arregla y no toca las tablas de la 1.9.0, así
+  que se puede volver atrás sin arreglos a mano.
+- Para pasar a la 1.10.x: primero la API (esperar en el log la primera pasada completa) y después el Worker de main.
+  Al revés, el Worker nuevo leería la copia vieja.
 
 ## Puesta en marcha (desde cero)
 

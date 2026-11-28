@@ -21,6 +21,15 @@ export class Consultas {
     this.sucursal = sucursal
   }
 
+  /** Ver Sistema.fijo: `f` trabaja sobre una foto del sistema. */
+  fijo<T>(f: () => T): T {
+    return this.s.fijo(f)
+  }
+  /** Ver Sistema.porFoto. */
+  porFoto<T>(clave: string, calcular: () => T): T {
+    return this.s.porFoto(clave, calcular)
+  }
+
   /**
    * Filas de `tabla` cuyo `campo` (crudo) vale `valor`, por índice: no recorre la tabla. El índice se arma una vez por
    * versión del archivo. `filtro` mira valores crudos antes de decodificar el registro.

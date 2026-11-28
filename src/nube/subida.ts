@@ -74,7 +74,7 @@ export class Nube {
       const fila = d.sistema.cliente(c)
       return fila ? documentoDeAcceso(fila) : null
     }, this.probados)
-    const piezas = await foto(d, rutas)
+    const piezas = await d.sistema.fijo(() => foto(d, rutas))
     const cambiadas = piezas.filter((p) => this.subido.get(p.clave) !== p.huella)
     // Los índices de sesiones van al final: nunca apuntan a algo que todavía no se subió.
     const indice = (p: Pieza) => p.clave.startsWith('sesiones')

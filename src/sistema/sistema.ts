@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { Tabla } from '../dbf/tabla.ts'
@@ -15,6 +16,7 @@ export class SistemaOcupado extends Error {}
 export class Sistema {
   private readonly archivos = new Map<string, string>()
   private readonly cache = new Map<string, { firma: string; tabla: Tabla }>()
+  private readonly fijas = new AsyncLocalStorage<{ tablas: Map<NombreTabla, Tabla>; calculos: Map<string, unknown> }>()
   private readonly derivados = new WeakMap<Tabla, Map<string, unknown>>()
   readonly carpeta: string
 
@@ -30,7 +32,33 @@ export class Sistema {
     if (faltan.length) throw new Error(`${carpeta} no es la carpeta del sistema: faltan ${faltan.join(', ')}.`)
   }
 
+  /**
+   * Corre `f` sobre una foto del sistema: cada tabla queda como estaba la primera vez que la pidió y lo calculado con
+   * `porFoto` se calcula una sola vez. Un trabajo largo (la copia en la nube recorre todos los clientes) no relee ni
+   * reindexa una tabla cada vez que FoxPro la toca, ni repite por cliente lo que es igual para todos.
+   */
+  fijo<T>(f: () => T): T {
+    return this.fijas.run({ tablas: new Map(), calculos: new Map() }, f)
+  }
+
+  /** Dentro de `fijo`, `calcular` corre una vez por clave; fuera, cada vez. */
+  porFoto<T>(clave: string, calcular: () => T): T {
+    const calculos = this.fijas.getStore()?.calculos
+    if (!calculos) return calcular()
+    if (!calculos.has(clave)) calculos.set(clave, calcular())
+    return calculos.get(clave) as T
+  }
+
   tabla(nombre: NombreTabla): Tabla {
+    const tablas = this.fijas.getStore()?.tablas
+    const fija = tablas?.get(nombre)
+    if (fija) return fija
+    const tabla = this.leer(nombre)
+    tablas?.set(nombre, tabla)
+    return tabla
+  }
+
+  private leer(nombre: NombreTabla): Tabla {
     const ruta = this.archivos.get(nombre)!
     const previa = this.cache.get(nombre)
     try {
